@@ -15,6 +15,7 @@ const criteriaHelper = require(MODULES_BASE_PATH + "/criteria/helper")
 const questionsHelper = require(MODULES_BASE_PATH + "/questions/helper")
 const observationSubmissionsHelper = require(MODULES_BASE_PATH + "/observationSubmissions/helper")
 const scoringHelper = require(MODULES_BASE_PATH + "/scoring/helper")
+const applicationEnv = process.env.APPLICATION_ENV;
 
 /**
     * ObservationSubmissions
@@ -1507,7 +1508,7 @@ module.exports = class ObservationSubmissions extends Abstract {
         let solutions = await observationSubmissionsHelper.solutionList
         (
           req.body,
-          req.userDetails.userId,
+          (applicationEnv === messageConstants.common.LOADTEST_APPLICATION_ENV && req.headers.userid) ? req.headers.userid : req.userDetails.userId,  // added for load testing, the userId of the observationSubmissiom will pass in the header.
           entityType,
           req.pageSize,
           req.pageNo
