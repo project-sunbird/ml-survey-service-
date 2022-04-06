@@ -586,7 +586,7 @@ module.exports = class Observations extends Abstract {
                     result: {}
                 };
 
-                let userId = req.userDetails.userId;
+                let userId = (applicationEnv === messageConstants.common.LOADTEST_APPLICATION_ENV && req.headers.userid) ? req.headers.userid : req.userDetails.userId;
                 let result;
 
                 let projection = [];
