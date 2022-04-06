@@ -14,7 +14,6 @@ const solutionsHelper = require(MODULES_BASE_PATH + "/solutions/helper")
 const userExtensionHelper = require(MODULES_BASE_PATH + "/userExtension/helper");
 const programsHelper = require(MODULES_BASE_PATH + "/programs/helper");
 const userRolesHelper = require(MODULES_BASE_PATH + "/userRoles/helper");
-const applicationEnv = process.env.APPLICATION_ENV;
 
 /**
     * Observations
