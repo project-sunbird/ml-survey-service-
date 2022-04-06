@@ -586,7 +586,7 @@ module.exports = class Observations extends Abstract {
                     result: {}
                 };
 
-                let userId = (applicationEnv === messageConstants.common.LOADTEST_APPLICATION_ENV && req.headers.userid) ? req.headers.userid : req.userDetails.userId;
+                let userId = req.userDetails.userId;
                 let result;
 
                 let projection = [];
@@ -982,10 +982,6 @@ module.exports = class Observations extends Abstract {
                     message: messageConstants.apiResponses.ASSESSMENT_FETCHED,
                     result: {}
                 };
-
-                if ( applicationEnv === messageConstants.common.LOADTEST_APPLICATION_ENV && req.headers.userid ) {
-                   req.userDetails.userId = req.headers.userid;
-                }
 
                 let observationDocument = await database.models.observations.findOne({ 
                     _id: req.params._id, 
