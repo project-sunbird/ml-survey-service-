@@ -215,7 +215,7 @@ module.exports = async function (req, res, next) {
 
         req.userDetails = {
           userToken : token,
-          id : decode.sub.split(":").pop(),
+          id : (applicationEnv === messageConstants.common.LOADTEST_APPLICATION_ENV && req.headers["userid"]) ? req.headers["userid"] : decode.sub.split(":").pop(),
           userId: (applicationEnv === messageConstants.common.LOADTEST_APPLICATION_ENV && req.headers["userid"]) ? req.headers["userid"] : decode.sub.split(":").pop(),
           userName : decode.preferred_username,
           email : decode.email,
