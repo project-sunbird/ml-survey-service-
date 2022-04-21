@@ -943,12 +943,14 @@ module.exports = class EntitiesHelper {
 
                 queryObject["$match"]["entityTypeId"] = entityTypeId;
 
-                queryObject["$match"]["$or"] = [
-                    { "metaInformation.name": new RegExp(searchText, 'i') },
-                    { "metaInformation.externalId": new RegExp("^" + searchText, 'm') },
-                    { "metaInformation.addressLine1": new RegExp(searchText, 'i') },
-                    { "metaInformation.addressLine2": new RegExp(searchText, 'i') }
-                ];
+                if ( searchText && searchText != "" ) {
+                    queryObject["$match"]["$or"] = [
+                        { "metaInformation.name": new RegExp(searchText, 'i') },
+                        { "metaInformation.externalId": new RegExp("^" + searchText, 'm') },
+                        { "metaInformation.addressLine1": new RegExp(searchText, 'i') },
+                        { "metaInformation.addressLine2": new RegExp(searchText, 'i') }
+                    ];
+                }
 
                 let entityDocuments = await database.models.entities.aggregate([
                     queryObject,

@@ -624,17 +624,16 @@ module.exports = class UserExtensionHelper {
                 }
             }
 
-            let userExtensionDoument = await database.models.userExtension.findOne({
-                userId: userId
-            }, { "roles.acl" : 1 }).lean();
+            let userExtensionDoument = await this.userExtensionDocuments({userId: userId},["roles.acl"]);
 
-            if (!userExtensionDoument) {
+            if (!userExtensionDoument || !userExtensionDoument.length > 0) {
                 return resolve({
                     success : false
                 });
             }
 
             let acl = {};
+            userExtensionDoument = userExtensionDoument[0];
 
             for (
                 let pointerToUserExtension = 0; 

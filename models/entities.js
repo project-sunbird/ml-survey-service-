@@ -16,6 +16,8 @@ module.exports = {
       metaInformation: {
         externalId: { type: String, index: true },
         name: { type: String, index: true },
+        addressLine1: { type: String, index: true },
+        addressLine2: { type: String, index: true },
       },
       updatedBy: String,
       createdBy: String,
