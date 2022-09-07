@@ -88,6 +88,13 @@ module.exports = {
     referenceFrom : String,
     appInformation : Object,
     userRoleInformation : Object,
-    criteriaLevelReport : Boolean
-  }
+    criteriaLevelReport : Boolean,
+    userProfile : Object
+  },
+  compoundIndex: [
+    {
+      "name" :{ observationId: 1, entityId: 1, submissionNumber:1 },
+      "indexType" : { unique: true }
+    }
+  ]
 };

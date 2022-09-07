@@ -14,6 +14,8 @@ const criteriaHelper = require(MODULES_BASE_PATH + "/criteria/helper")
 const questionsHelper = require(MODULES_BASE_PATH + "/questions/helper")
 const entitiesHelper = require(MODULES_BASE_PATH + "/entities/helper")
 const solutionHelper = require(MODULES_BASE_PATH + "/solutions/helper");
+const criteriaQuestionHelper = require(MODULES_BASE_PATH + "/criteriaQuestions/helper");
+const programsHelper = require(MODULES_BASE_PATH + "/programs/helper");
 
 /**
     * ObservationSubmissionsHelper
@@ -91,15 +93,15 @@ module.exports = class ObservationSubmissionsHelper {
     });
 }
 
-      /**
-   * Push completed observation submission in kafka for reporting.
+    /**
+   * Push observation submission in kafka for reporting.
    * @method
-   * @name pushCompletedObservationSubmissionForReporting
+   * @name pushObservationSubmissionForReporting
    * @param {String} observationSubmissionId - observation submission id.
    * @returns {JSON} - message that observation submission is pushed to kafka.
    */
 
-    static pushCompletedObservationSubmissionForReporting(observationSubmissionId) {
+    static pushObservationSubmissionForReporting(observationSubmissionId) {
         return new Promise(async (resolve, reject) => {
             try {
 
@@ -111,16 +113,9 @@ module.exports = class ObservationSubmissionsHelper {
                     observationSubmissionId = ObjectId(observationSubmissionId);
                 }
 
-                let observationSubmissionsDocument = await database.models.observationSubmissions.findOne({
-                    _id: observationSubmissionId,
-                    status: "completed"
-                }).lean();
+                const observationSubmissionsDocument = await this.details(observationSubmissionId);
 
-                if (!observationSubmissionsDocument) {
-                    throw messageConstants.apiResponses.SUBMISSION_NOT_FOUND+"or"+messageConstants.apiResponses.SUBMISSION_STATUS_NOT_COMPLETE;
-                }
-
-                if( observationSubmissionsDocument.referenceFrom === messageConstants.common.PROJECT ) {
+                if(observationSubmissionsDocument.status == "completed" && observationSubmissionsDocument.referenceFrom === messageConstants.common.PROJECT ) {
                     
                     await this.pushSubmissionToImprovementService(
                         _.pick(
@@ -129,8 +124,10 @@ module.exports = class ObservationSubmissionsHelper {
                     );
                 }
 
-                const kafkaMessage = await kafkaClient.pushCompletedObservationSubmissionToKafka(observationSubmissionsDocument);
-
+               
+                console.log("--- logs starts here -----");
+                const kafkaMessage = await kafkaClient.pushObservationSubmissionToKafka(observationSubmissionsDocument);
+               
                 if(kafkaMessage.status != "success") {
                     let errorObject = {
                         formData: {
@@ -141,63 +138,21 @@ module.exports = class ObservationSubmissionsHelper {
                     console.log(errorObject);
                 }
 
-                return resolve(kafkaMessage);
-
-            } catch (error) {
-                return reject(error);
-            }
-        })
-    }
-
-    /**
-   * Push incomplete observation submission for reporting.
-   * @method
-   * @name pushInCompleteObservationSubmissionForReporting
-   * @param {String} observationSubmissionId - observation submission id.
-   * @returns {JSON} consists of kafka message whether it is pushed for reporting
-   * or not.
-   */
-
-    static pushInCompleteObservationSubmissionForReporting(observationSubmissionId) {
-        return new Promise(async (resolve, reject) => {
-            try {
-
-                if (observationSubmissionId == "") {
-                    throw "No observation submission id found";
-                }
-
-                if(typeof observationSubmissionId == "string") {
-                    observationSubmissionId = ObjectId(observationSubmissionId);
-                }
-
-                let observationSubmissionsDocument = await database.models.observationSubmissions.findOne({
-                    _id: observationSubmissionId,
-                    status: {$ne : "completed"}
-                }).lean();
-
-                if (!observationSubmissionsDocument) {
-                    throw messageConstants.apiResponses.SUBMISSION_NOT_FOUND+"or"+messageConstants.apiResponses.SUBMISSION_STATUS_NOT_COMPLETE;
-                }
-            
-                const kafkaMessage = await kafkaClient.pushInCompleteObservationSubmissionToKafka(observationSubmissionsDocument);
-
-                if(kafkaMessage.status != "success") {
-                    let errorObject = {
-                        formData: {
-                            observationSubmissionId:observationSubmissionsDocument._id.toString(),
-                            message:kafkaMessage.message
-                        }
-                    };
-                    console.log(errorObject);
-                }
+                console.log("--logs ends here---")
 
                 return resolve(kafkaMessage);
 
             } catch (error) {
-                return reject(error);
+                return reject({
+                    success: false,
+                    message: error.message,
+                    data: {}
+                    
+                });
             }
         })
     }
+
 
      /**
    * Push observation submission to queue for rating.
@@ -269,16 +224,17 @@ module.exports = class ObservationSubmissionsHelper {
                     throw new Error(messageConstants.apiResponses.OBSERVATION_SUBMISSSION_NOT_FOUND);
                 }
 
-                let solutionDocument = await database.models.solutions.findOne({
+               
+                let solutionDocument = await solutionHelper.solutionDocuments({
                     externalId: submissionDocument.solutionExternalId,
-                    type : "observation",
-                    // scoringSystem : "pointsBasedScoring"
-                }, { themes: 1, levelToScoreMapping: 1, scoringSystem : 1, flattenedThemes : 1, sendSubmissionRatingEmailsTo : 1}).lean();
-
-                if (!solutionDocument) {
+                    type : "observation"
+                }, [ "themes","levelToScoreMapping","scoringSystem","flattenedThemes","sendSubmissionRatingEmailsTo"]);
+    
+                if (!solutionDocument.length) {
                     throw new Error(messageConstants.apiResponses.SOLUTION_NOT_FOUND);
                 }
-
+                solutionDocument = solutionDocument[0];
+              
                 if(solutionDocument.sendSubmissionRatingEmailsTo && solutionDocument.sendSubmissionRatingEmailsTo != "") {
                     emailRecipients = solutionDocument.sendSubmissionRatingEmailsTo;
                 }
@@ -347,7 +303,12 @@ module.exports = class ObservationSubmissionsHelper {
                                     if (question.responseType == "multiselect") {
                                         questionMaxScore += option.score;
                                     }
-                                    (option.score && option.score > 0) ? submissionDocument.questionDocuments[question._id.toString()][`${option.value}-score`] = option.score : "";
+                                    if ("score" in option) {
+                                        option.score >= 0 ?
+                                        submissionDocument.questionDocuments[question._id.toString()][`${option.value}-score`] =
+                                        option.score : "";
+                                    }
+                                    // (option.score && option.score >= 0) ? submissionDocument.questionDocuments[question._id.toString()][`${option.value}-score`] = option.score : "";
                                 })
                             }
                             if (question.sliderOptions && question.sliderOptions.length > 0) {
@@ -371,17 +332,17 @@ module.exports = class ObservationSubmissionsHelper {
                             completedDate: new Date()
                         }
                     );
-                    await this.pushCompletedObservationSubmissionForReporting(submissionId);
-                    emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_SUCCESS+" - "+submissionId,JSON.stringify(resultingArray));
+                    await this.pushObservationSubmissionForReporting(submissionId);
+                    // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_SUCCESS+" - "+submissionId,JSON.stringify(resultingArray));
                     return resolve(messageConstants.apiResponses.OBSERVATION_RATING);
                 } else {
-                    emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_FAILED+" - "+submissionId,JSON.stringify(resultingArray));
+                    // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_FAILED+" - "+submissionId,JSON.stringify(resultingArray));
                     return resolve(messageConstants.apiResponses.OBSERVATION_RATING);
                 }
 
             } catch (error) {
 
-                emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
+                // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
                 return reject(error);
             }
         })
@@ -427,13 +388,13 @@ module.exports = class ObservationSubmissionsHelper {
                     }
                 );
                 
-                await this.pushCompletedObservationSubmissionForReporting(submissionId);
+                await this.pushObservationSubmissionForReporting(submissionId);
                 
-                emailClient.pushMailToEmailService(emailRecipients,"Successfully marked submission " + submissionId + "complete and pushed for reporting","NO TEXT AVAILABLE");
+                // emailClient.pushMailToEmailService(emailRecipients,"Successfully marked submission " + submissionId + "complete and pushed for reporting","NO TEXT AVAILABLE");
                 return resolve(messageConstants.apiResponses.OBSERVATION_RATING);
 
             } catch (error) {
-                emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
+                // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.OBSERVATION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
                 return reject(error);
             }
         })
@@ -477,7 +438,10 @@ module.exports = class ObservationSubmissionsHelper {
                 "evidencesStatus.name", 
                 "evidencesStatus.externalId", 
                 "evidencesStatus.isSubmitted", 
-                "evidencesStatus.submissions"
+                "evidencesStatus.submissions",
+                "evidencesStatus.canBeNotApplicable",
+                "evidencesStatus.canBeNotAllowed",
+                "evidencesStatus.notApplicable",
             ];
 
             let result = await this.observationSubmissionsDocument
@@ -511,7 +475,10 @@ module.exports = class ObservationSubmissionsHelper {
                     let evidenceStatus = {
                         name : evidence.name,
                         code : evidence.externalId,
-                        status : messageConstants.common.SUBMISSION_STATUS_COMPLETED
+                        status : messageConstants.common.SUBMISSION_STATUS_COMPLETED,
+                        canBeNotApplicable : evidence.canBeNotApplicable,
+                        canBeNotAllowed : evidence.canBeNotAllowed,
+                        notApplicable : evidence.notApplicable
                     };
 
                     if( !evidence.isSubmitted ){ 
@@ -650,7 +617,7 @@ module.exports = class ObservationSubmissionsHelper {
         catch (error) {
             return resolve({
                 success: false,
-                message: error.message,
+                message: error,
                 data: false
             })
         }
@@ -789,7 +756,7 @@ module.exports = class ObservationSubmissionsHelper {
         let submissionDocument = await database.models.observationSubmissions.deleteOne(
           {
             "_id": submissionId,
-            status: "started",
+            status: {$in: ["started","draft"]},
             createdBy: userId
           }
         );
@@ -890,11 +857,19 @@ module.exports = class ObservationSubmissionsHelper {
             }
             let result = {};
             
+            // Search for user roles
+            let userRoleFilterArray = new Array;
+            bodyData.role.split(",").forEach((eachRole) => {
+                userRoleFilterArray.push(new RegExp(eachRole))
+            })
+            
             let query = {
                 createdBy: userId,
                 deleted: false,
                 status: messageConstants.common.SUBMISSION_STATUS_COMPLETED,
-                "userRoleInformation.role" : bodyData.role
+                "userRoleInformation.role" : {
+                    $in : userRoleFilterArray
+                }
             }
 
             if (pageNo == 1) {
@@ -986,7 +961,6 @@ module.exports = class ObservationSubmissionsHelper {
             })
             
             query["solutionId"] = { $in : solutionIds};
-            query["submissionNumber"] = 1;
             
             let submissions = await this.observationSubmissionsDocument
             (
@@ -999,9 +973,10 @@ module.exports = class ObservationSubmissionsHelper {
                 "scoringSystem",
                 "isRubricDriven",
                 "entityType",
-                "criteriaLevelReport"
+                "criteriaLevelReport",
+                "completedDate"
                ],
-               { createdAt: -1, _id: -1}
+               { completedDate: -1 }
             );
 
             let submissionDocuments = _.groupBy(submissions, "solutionId");
@@ -1064,9 +1039,18 @@ module.exports = class ObservationSubmissionsHelper {
                 solutionObject.entities = [];
                
                 submissionDocuments[solution].forEach( singleSubmission => {
-                    if (entities[singleSubmission.entityId]) {
-                        solutionObject.entities.push(entities[singleSubmission.entityId]);
+                    let findEntities = solutionObject.entities.findIndex(entity => entity._id.toString() === singleSubmission.entityId.toString());
+
+                    if (findEntities < 0) {
+                        if (entities[singleSubmission.entityId]) {
+                            solutionObject.entities.push(entities[singleSubmission.entityId]);
+                        }
                     }
+
+                    if (new Date(singleSubmission.completedDate) > new Date(solutionObject.completedDate)) {
+                        solutionObject.completedDate = singleSubmission.completedDate;
+                    }
+
                     if (solutionMap[singleSubmission.solutionId]) {
                         solutionObject.programName = solutionMap[singleSubmission.solutionId]["programName"];
                         solutionObject.name = solutionMap[singleSubmission.solutionId]["name"];
@@ -1093,7 +1077,222 @@ module.exports = class ObservationSubmissionsHelper {
             })
         }
     })
-}   
+}
+
+    /**
+   * Mark Observation Submission NotApplicable.
+   * @method
+   * @name addAnswersMarkedAsNA
+   * @param {String} submissionId -observation submissions id.
+   * @param {String} userId - logged in user id.
+   * @param {Object} evidence - Body Data
+   * @returns {JSON} - message that observation submission are set as NotApplicable.
+   */
+
+    static addAnswersMarkedAsNA(submissionId,userId, evidenceId, remarks = "") {
+        return new Promise(async (resolve, reject) => {
+    
+          try {
+
+            let formattedEvidence = {};
+
+            let submissionDocument = await this.observationSubmissionsDocument
+            (
+                { "_id": submissionId,
+                  "evidencesStatus": {"$elemMatch": {externalId: evidenceId, 
+                                                    canBeNotApplicable: true}}
+                },
+                [
+                    "evidencesStatus.$",
+                    "solutionId"
+                ]
+            );
+            
+            if (!submissionDocument.length) {
+                throw new Error(messageConstants.apiResponses.SUBMISSION_NOT_FOUND)
+            }
+
+            submissionDocument = submissionDocument[0];
+
+            if(submissionDocument.evidencesStatus[0].notApplicable){
+                throw new Error(evidenceId + messageConstants.apiResponses.EVIDENCE_ALREADY_MARKED_AS_NOT_APPLICABLE)
+            }
+
+            let projectionFields = [
+              "themes",
+              "evidenceMethods"
+            ];
+
+            let solutionDocument = await solutionHelper.solutionDocuments({
+                _id: submissionDocument.solutionId
+            }, projectionFields);
+
+            if(!solutionDocument.length){
+                throw new Error(messageConstants.apiResponses.SOLUTION_NOT_FOUND);
+            }
+            
+            solutionDocument = solutionDocument[0];
+            let criteriasIdArray = gen.utils.getCriteriaIds(solutionDocument.themes);
+            if(!criteriasIdArray){
+                throw new Error(messageConstants.apiResponses.CRITERIA_QUESTIONS_COULD_NOT_BE_FOUND);
+            }
+
+            let questionsArray = await criteriaQuestionHelper.getCriteriaQuestions(criteriasIdArray,evidenceId);
+
+            let answersArray = {};
+            if(questionsArray && questionsArray.length > 0){
+
+                await Promise.all(questionsArray.map( async eachQuestion => {
+                    let answer  = await this.convertToECMNAQuestionFormat(evidenceId, eachQuestion);
+                    answersArray = Object.assign(answersArray, answer);
+                }))
+            }
+
+            if(!answersArray){
+                throw new Error(messageConstants.apiResponses.CRITERIA_QUESTIONS_COULD_NOT_BE_FOUND);
+            }
+
+            formattedEvidence.evidences = {
+                externalId : evidenceId,
+                answers : answersArray,
+                startTime : Date.now(),
+                endTime : Date.now(),
+                notApplicable : true,
+                remarks : remarks
+            }
+
+            let response = {
+                success: true,
+                message: messageConstants.apiResponses.OBSERVATION_SUBMISSION_CHECK,
+                result: formattedEvidence
+            };
+    
+            return resolve(response);
+    
+          } catch (error) {
+            return reject({
+              status: error.status || httpStatusCode.internal_server_error.status,
+              message: error.message || httpStatusCode.internal_server_error.message,
+              errorObject: error
+            });
+          }
+    
+        })
+    } 
+
+    /**
+   * Convert Questions To Answer format.
+   * @method
+   * @name convertToECMNAQuestionFormat
+   * @param {Object} question - Question Data
+   * @returns {JSON} - formatted answer array.
+   */
+
+    static convertToECMNAQuestionFormat(evidenceMethod, questionData) {
+        return new Promise(async (resolve, reject) => {
+    
+          try {
+
+            if(!questionData){
+                throw new Error(messageConstants.apiResponses.CRITERIA_QUESTIONS_COULD_NOT_BE_FOUND);
+            }
+
+            let formatQuestion = {};
+            let qId = questionData._id;
+
+            formatQuestion[ qId ] = {
+                qid : qId,
+                remarks : "",
+                fileName : [],
+                notApplicable: true,
+                startTime : Date.now(),
+                endTime : Date.now(),
+                payload : {
+                    question : questionData.question,
+                    labels : [],
+                    responseType : questionData.responseType
+                },
+                criteriaId : questionData.criteriaId,
+                responseType : questionData.responseType,
+                evidenceMethod : evidenceMethod,
+                rubricLevel : questionData.rubricLevel
+            };
+
+            if(questionData.responseType != "matrix"){
+                formatQuestion[ qId ].value =  "";
+            }else{
+                formatQuestion[ qId ].value = [];
+            }
+
+            return resolve(formatQuestion);
+    
+          } catch (error) {
+            return reject({
+              status: error.status || httpStatusCode.internal_server_error.status,
+              message: error.message || httpStatusCode.internal_server_error.message,
+              errorObject: error
+            });
+          }
+    
+        })
+    } 
+
+
+   /**
+   * Get observation submission details
+   * @method
+   * @name details
+   * @param {String} observationSubmissionId - observation submission id.
+   * @returns {JSON} - observation submission details
+   */
+
+    static details(observationSubmissionId) {
+        return new Promise(async (resolve, reject) => {
+            try {
+
+                let observationSubmissionsDocument = await database.models.observationSubmissions.findOne({
+                    _id: observationSubmissionId,
+                }).lean();
+
+                if (!observationSubmissionsDocument) {
+                    throw messageConstants.apiResponses.SUBMISSION_NOT_FOUND;
+                }
+
+                let solutionDocument = await solutionHelper.solutionDocuments({
+                    _id: observationSubmissionsDocument.solutionId
+                }, [ "name","scoringSystem","description","questionSequenceByEcm"]);
+    
+                if(!solutionDocument.length){
+                    throw messageConstants.apiResponses.SOLUTION_NOT_FOUND;
+                }
+                
+                solutionDocument = solutionDocument[0];
+                observationSubmissionsDocument['solutionInfo'] = solutionDocument;
+
+                let programDocument = 
+                await programsHelper.list(
+                    {
+                        _id: observationSubmissionsDocument.programId,
+                    },
+                    ["name","description"],
+                );
+    
+                if( !programDocument[0] ) {
+                    throw  messageConstants.apiResponses.PROGRAM_NOT_FOUND
+                }
+                observationSubmissionsDocument['programInfo'] = programDocument[0];
+
+                return resolve(observationSubmissionsDocument);
+
+            } catch (error) {
+                return reject({
+                    success: false,
+                    message: error,
+                    data: {}
+                });
+            }
+        })
+    }
 
 
 };

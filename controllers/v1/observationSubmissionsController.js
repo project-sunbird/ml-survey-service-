@@ -16,6 +16,7 @@ const questionsHelper = require(MODULES_BASE_PATH + "/questions/helper")
 const observationSubmissionsHelper = require(MODULES_BASE_PATH + "/observationSubmissions/helper")
 const scoringHelper = require(MODULES_BASE_PATH + "/scoring/helper")
 
+
 /**
     * ObservationSubmissions
     * @class
@@ -40,7 +41,7 @@ module.exports = class ObservationSubmissions extends Abstract {
   * @apiSampleRequest /assessment/api/v1/observationSubmissions/create/5d2c1c57037306041ef0c7ea?entityId=5d2c1c57037306041ef0c8fa
   * @apiParamExample {json} Request:
   * {
-  *   "role" : "HM",
+  *   "role" : "HM,DEO",
    		"state" : "236f5cff-c9af-4366-b0b6-253a1789766a",
       "district" : "1dcbc362-ec4c-4559-9081-e0c2864c2931",
       "school" : "c5726207-4f9f-4f45-91f1-3e9e8e84d824"
@@ -90,6 +91,7 @@ module.exports = class ObservationSubmissions extends Abstract {
    * @param {String} req.params._id -observation solution id.
    * @param {String} req.query.entityId -entity id.
    * @param {String} req.userDetails.userId - logged in user id.
+   * @param {String} req.userDetails.userToken - logged in user token.
    * @returns {JSON} - observation submissions creation.
    */
 
@@ -97,7 +99,6 @@ module.exports = class ObservationSubmissions extends Abstract {
     return new Promise(async (resolve, reject) => {
 
       try {
-
         let observationDocument = await observationsHelper.observationDocuments({
           _id: req.params._id,
           createdBy: req.userDetails.userId,
@@ -190,6 +191,7 @@ module.exports = class ObservationSubmissions extends Abstract {
         }
 
         lastSubmissionNumber = lastSubmissionForObservationEntity.result + 1;
+        
 
         let submissionDocument = {
           entityId: entityDocument._id,
@@ -213,16 +215,27 @@ module.exports = class ObservationSubmissions extends Abstract {
           entityProfile: {},
           status: "started",
           scoringSystem: solutionDocument.scoringSystem,
-          isRubricDriven: solutionDocument.isRubricDriven
+          isRubricDriven: solutionDocument.isRubricDriven, 
+          userProfile : observationDocument.userProfile 
       };
+
 
       if( solutionDocument.hasOwnProperty("criteriaLevelReport") ) {
         submissionDocument["criteriaLevelReport"] = solutionDocument["criteriaLevelReport"];
       }
-       
-      if (req.body && req.body.role) {
-        submissionDocument.userRoleInformation = req.body;
-      }
+      if( observationDocument.userRoleInformation && Object.keys(observationDocument.userRoleInformation).length > 0 ){
+          submissionDocument.userRoleInformation = observationDocument.userRoleInformation;
+      } else if( req.body && req.body.role && !observationDocument.userRoleInformation ){
+          submissionDocument.userRoleInformation = req.body;
+          let updateObservation = await observationsHelper.updateObservationDocument
+              (
+                  { _id: req.params._id },
+                  {
+                      $set: { userRoleInformation : req.body }
+                  }
+              )
+      } 
+     
 
       if( solutionDocument.referenceFrom === messageConstants.common.PROJECT ) {
         submissionDocument["referenceFrom"] = messageConstants.common.PROJECT;
@@ -248,7 +261,6 @@ module.exports = class ObservationSubmissions extends Abstract {
               language: 0,
               keywords: 0,
               concepts: 0,
-              createdFor: 0,
               updatedAt : 0,
               createdAt : 0,
               frameworkCriteriaId : 0,
@@ -311,7 +323,7 @@ module.exports = class ObservationSubmissions extends Abstract {
       }
       
       // Push new observation submission to kafka for reporting/tracking.
-      observationSubmissionsHelper.pushInCompleteObservationSubmissionForReporting(newObservationSubmissionDocument._id);
+      observationSubmissionsHelper.pushObservationSubmissionForReporting(newObservationSubmissionDocument._id);
 
       let observations = new Array;
 
@@ -539,9 +551,9 @@ module.exports = class ObservationSubmissions extends Abstract {
   
           let response = await submissionsHelper.createEvidencesInSubmission(req, "observationSubmissions", false);
   
-          if (response.result.status && response.result.status === "completed") {
-            await observationSubmissionsHelper.pushCompletedObservationSubmissionForReporting(req.params._id);
-          } else if(response.result.status && response.result.status === "ratingPending") {
+          await observationSubmissionsHelper.pushObservationSubmissionForReporting(req.params._id);
+       
+           if(response.result.status && response.result.status === "ratingPending") {
             await observationSubmissionsHelper.pushObservationSubmissionToQueueForRating(req.params._id);
           }
   
@@ -730,7 +742,7 @@ module.exports = class ObservationSubmissions extends Abstract {
   
 
   /**
-  * @api {get} /assessment/api/v1/observationSubmissions/pushCompletedObservationSubmissionForReporting/:observationSubmissionId Push Completed Observation Submission for Reporting
+  * @api {get} /assessment/api/v1/observationSubmissions/pushObservationSubmissionForReporting/:observationSubmissionId Push Observation Submission for Reporting
   * @apiVersion 1.0.0
   * @apiName Push Observation Submission to Kafka
   * @apiGroup Observation Submissions
@@ -739,61 +751,19 @@ module.exports = class ObservationSubmissions extends Abstract {
   */
 
   /**
-   * Push completed observation submissions to kafka for reporting.
+   * Push observation submissions to kafka for reporting.
    * @method
-   * @name pushCompletedObservationSubmissionForReporting
+   * @name pushObservationSubmissionForReporting
    * @param {Object} req -request data. 
    * @param {String} req.params._id -observation submissions id.
    * @returns {JSON} - message that observation submission is pushed to kafka.
    */
 
-  async pushCompletedObservationSubmissionForReporting(req) {
+  async pushObservationSubmissionForReporting(req) {
     return new Promise(async (resolve, reject) => {
       try {
 
-        let pushObservationSubmissionToKafka = await observationSubmissionsHelper.pushCompletedObservationSubmissionForReporting(req.params._id);
-
-        if(pushObservationSubmissionToKafka.status != "success") {
-          throw pushObservationSubmissionToKafka.message;
-        }
-
-        return resolve({
-          message: pushObservationSubmissionToKafka.message
-        });
-
-      } catch (error) {
-        return reject({
-          status: error.status || httpStatusCode.internal_server_error.status,
-          message: error.message || httpStatusCode.internal_server_error.message,
-        });
-      }
-    })
-  }
-
-
-  /**
-  * @api {get} /assessment/api/v1/observationSubmissions/pushInCompleteObservationSubmissionForReporting/:observationSubmissionId Push Incomplete Observation Submission for Reporting
-  * @apiVersion 1.0.0
-  * @apiName Push Incomplete Observation Submission for Reporting
-  * @apiGroup Observation Submissions
-  * @apiUse successBody
-  * @apiUse errorBody
-  */
-
-  /**
-   * Push incomplete observation submissions to kafka for reporting.
-   * @method
-   * @name pushInCompleteObservationSubmissionForReporting
-   * @param {Object} req -request data. 
-   * @param {String} req.params._id -observation submissions id.
-   * @returns {JSON} - message that observation submission is pushed to kafka.
-   */
-
-  async pushInCompleteObservationSubmissionForReporting(req) {
-    return new Promise(async (resolve, reject) => {
-      try {
-
-        let pushObservationSubmissionToKafka = await observationSubmissionsHelper.pushInCompleteObservationSubmissionForReporting(req.params._id);
+        let pushObservationSubmissionToKafka = await observationSubmissionsHelper.pushObservationSubmissionForReporting(req.params._id);
 
         if(pushObservationSubmissionToKafka.status != "success") {
           throw pushObservationSubmissionToKafka.message;
@@ -1373,14 +1343,13 @@ module.exports = class ObservationSubmissions extends Abstract {
           if( req.method === "POST" ) {
 
             if( req.body.title ) {
-              
               response = await observationSubmissionsHelper.setTitle(
                 req.params._id,
                 req.userDetails.userId,
                 req.body.title
               );
 
-            } else if( req.body.evidence ) {
+            }else if( req.body.evidence ) {
               
               let isSubmissionAllowed = await observationSubmissionsHelper.isAllowed
               (
@@ -1395,13 +1364,46 @@ module.exports = class ObservationSubmissions extends Abstract {
               ) {
                 throw new Error(messageConstants.apiResponses.MULTIPLE_SUBMISSIONS_NOT_ALLOWED);
               }
+
+              if(req.body.evidence.notApplicable && req.body.evidence.answers == undefined){
+
+                let formattedEvidence = await observationSubmissionsHelper.addAnswersMarkedAsNA(
+                  req.params._id,
+                  req.userDetails.userId,
+                  req.body.evidence.externalId,
+                  req.body.evidence.remarks ? req.body.evidence.remarks : ""
+                );
+
+                if(!formattedEvidence || !formattedEvidence.result.evidences){
+                  return resolve(formattedEvidence);
+                }
+
+                req.body.evidence = formattedEvidence.result.evidences;
+                
+              }
               
-              response = await submissionsHelper.createEvidencesInSubmission(req, "observationSubmissions", false);
+              if(req.body.evidence.notApplicable && req.body.evidence.answers == undefined){
+
+                let formattedEvidence = await observationSubmissionsHelper.addAnswersMarkedAsNA(
+                  req.params._id,
+                  req.userDetails.userId,
+                  req.body.evidence.externalId,
+                  req.body.evidence.remarks ? req.body.evidence.remarks : ""
+                );
+
+                if(!formattedEvidence || !formattedEvidence.result.evidences){
+                  return resolve(formattedEvidence);
+                }
+
+                req.body.evidence = formattedEvidence.result.evidences;
+                
+              }
               
-              if (response.result.status && response.result.status === "completed") {
-                await observationSubmissionsHelper.pushCompletedObservationSubmissionForReporting(req.params._id);
-              } else if(response.result.status && response.result.status === "ratingPending") {
-                await observationSubmissionsHelper.pushObservationSubmissionToQueueForRating(req.params._id);
+                response = await submissionsHelper.createEvidencesInSubmission(req, "observationSubmissions", false);
+                observationSubmissionsHelper.pushObservationSubmissionForReporting(req.params._id);
+              
+                if(response.result.status && response.result.status === "ratingPending") {
+                observationSubmissionsHelper.pushObservationSubmissionToQueueForRating(req.params._id);
               }
 
               let appInformation = {};
@@ -1458,7 +1460,7 @@ module.exports = class ObservationSubmissions extends Abstract {
   * @apiSampleRequest /assessment/api/v1/observationSubmissions/solutionList
   * @apiParamExample {json} Request:
   * {
-  *   "role" : "HM",
+  *   "role" : "HM,DEO",
    		"state" : "236f5cff-c9af-4366-b0b6-253a1789766a",
       "district" : "1dcbc362-ec4c-4559-9081-e0c2864c2931",
       "school" : "c5726207-4f9f-4f45-91f1-3e9e8e84d824"

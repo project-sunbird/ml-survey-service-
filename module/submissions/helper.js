@@ -17,7 +17,7 @@ const entitiesHelper = require(MODULES_BASE_PATH + "/entities/helper");
 const programsHelper = require(MODULES_BASE_PATH + "/programs/helper");
 const entityAssessorsHelper = require(MODULES_BASE_PATH + "/entityAssessors/helper");
 const criteriaQuestionsHelper = require(MODULES_BASE_PATH + "/criteriaQuestions/helper");
-const kendraService = require(ROOT_PATH + "/generics/services/kendra");
+const coreService = require(ROOT_PATH + "/generics/services/core");
 const path = require("path");
 const surveySubmissionsHelper = require(MODULES_BASE_PATH + "/surveySubmissions/helper");
 
@@ -446,6 +446,13 @@ module.exports = class SubmissionsHelper {
                     req.body.evidence.submissionDate = new Date();
 
                     let evidencesStatusToBeChanged = submissionDocument.evidencesStatus.find(singleEvidenceStatus => singleEvidenceStatus.externalId == req.body.evidence.externalId);
+                    let draftStatusCheck = submissionDocument.evidencesStatus.some(
+                        singleEvidenceStatus => 
+                        singleEvidenceStatus.externalId !== req.body.evidence.externalId &&
+                        singleEvidenceStatus.isSubmitted === false && 
+                        singleEvidenceStatus.submissions.length > 0
+                    );
+
                     if (submissionDocument.evidences[req.body.evidence.externalId].isSubmitted === false) {
                         runUpdateQuery = true;
                         req.body.evidence.isValid = true;
@@ -485,37 +492,50 @@ module.exports = class SubmissionsHelper {
 
                         if (answerArray.isAGeneralQuestionResponse) { delete answerArray.isAGeneralQuestionResponse; }
 
-
-                        evidencesStatusToBeChanged['isSubmitted'] = true;
-                        evidencesStatusToBeChanged['notApplicable'] = req.body.evidence.notApplicable;
-                        evidencesStatusToBeChanged['startTime'] = req.body.evidence.startTime;
-                        evidencesStatusToBeChanged['endTime'] = req.body.evidence.endTime;
-                        evidencesStatusToBeChanged['hasConflicts'] = false;
-                        evidencesStatusToBeChanged['submissions'].push(_.omit(req.body.evidence, ["answers","status"]));
-
-                        updateObject.$push = {
-                            ["evidences." + req.body.evidence.externalId + ".submissions"]: req.body.evidence
-                        };
                         updateObject.$set = {
                             answers: _.assignIn(submissionDocument.answers, answerArray),
                             ["evidences." + req.body.evidence.externalId + ".isSubmitted"] : true,
                             ["evidences." + req.body.evidence.externalId + ".notApplicable"]: req.body.evidence.notApplicable,
                             ["evidences." + req.body.evidence.externalId + ".startTime"]: req.body.evidence.startTime,
                             ["evidences." + req.body.evidence.externalId + ".endTime"]: req.body.evidence.endTime,
+                            ["evidences." + req.body.evidence.externalId + ".remarks"]: req.body.evidence.remarks,
                             ["evidences." + req.body.evidence.externalId + ".hasConflicts"]: false,
-                            status: (submissionDocument.status === "started") ? "inprogress" : submissionDocument.status
+                            status: (submissionDocument.status === "started"  || submissionDocument.status === "draft") ? "inprogress" : submissionDocument.status
                         };
+
+                        if (!evidencesStatusToBeChanged.isSubmitted) {
+                            evidencesStatusToBeChanged['submissions'] = [];
+                            updateObject["$set"]["evidences." + req.body.evidence.externalId + ".submissions"] = [req.body.evidence];
+                        } else {
+                            updateObject.$push = {
+                                ["evidences." + req.body.evidence.externalId + ".submissions"]: req.body.evidence
+                            };
+                        }
+
+                        evidencesStatusToBeChanged['isSubmitted'] = true;
+                        evidencesStatusToBeChanged['notApplicable'] = req.body.evidence.notApplicable;
+                        evidencesStatusToBeChanged['startTime'] = req.body.evidence.startTime;
+                        evidencesStatusToBeChanged['endTime'] = req.body.evidence.endTime;
+                        evidencesStatusToBeChanged['remarks'] = req.body.evidence.remarks;
+                        evidencesStatusToBeChanged['hasConflicts'] = false;
+                        evidencesStatusToBeChanged['submissions'].push(_.omit(req.body.evidence, ["answers","status"]));
+
+                        if (draftStatusCheck) {
+                            updateObject["$set"]["status"] = "draft";
+                        }
 
                         if( 
                             req.body.evidence.status && 
                             req.body.evidence.status === messageConstants.common.DRAFT 
                         ) {
+                            updateObject["$set"]["status"] = "draft";
                             evidencesStatusToBeChanged['isSubmitted'] = false;
                             updateObject["$set"]["evidences." + req.body.evidence.externalId + ".isSubmitted"] = false;
                             delete req.body.evidence.status;
                         }
 
                         updateObject["$set"]["evidencesStatus"] = submissionDocument.evidencesStatus;
+                        updateObject["$set"]["evidences." + req.body.evidence.externalId + ".remarks"] = req.body.evidence.remarks;
 
                     } else {
 
@@ -542,7 +562,7 @@ module.exports = class SubmissionsHelper {
                         this.pushInCompleteSubmissionForReporting(updatedSubmissionDocument._id);
                     } else if (modelName == messageConstants.common.OBSERVATION_SUBMISSIONS) {
                         // Push updated submission to kafka for reporting/tracking.
-                        observationSubmissionsHelper.pushInCompleteObservationSubmissionForReporting(updatedSubmissionDocument._id);
+                        observationSubmissionsHelper.pushObservationSubmissionForReporting(updatedSubmissionDocument._id);
                     } else if (modelName == messageConstants.common.SURVEY_SUBMISSIONS) {
                         // Push updated submission to kafka for reporting/tracking.
                         surveySubmissionsHelper.pushInCompleteSurveySubmissionForReporting(updatedSubmissionDocument._id);
@@ -859,15 +879,15 @@ module.exports = class SubmissionsHelper {
                         }
                     );
                     await this.pushCompletedSubmissionForReporting(submissionId);
-                    emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_SUCCESS+" - "+submissionId,JSON.stringify(resultingArray));
+                    // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_SUCCESS+" - "+submissionId,JSON.stringify(resultingArray));
                     return resolve(messageConstants.apiResponses.SUBMISSION_RATING_COMPLETED);
                 } else {
-                    emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_FAILED+" - "+submissionId,JSON.stringify(resultingArray));
+                    // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_FAILED+" - "+submissionId,JSON.stringify(resultingArray));
                     return resolve(messageConstants.apiResponses.SUBMISSION_RATING_COMPLETED);
                 }
 
             } catch (error) {
-                emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
+                // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
                 return reject(error);
             }
         })
@@ -916,12 +936,12 @@ module.exports = class SubmissionsHelper {
                 
                 await this.pushCompletedSubmissionForReporting(submissionId);
 
-                emailClient.pushMailToEmailService(emailRecipients,"Successfully marked submission " + submissionId + "complete and pushed for reporting","NO TEXT AVAILABLE");
+                // emailClient.pushMailToEmailService(emailRecipients,"Successfully marked submission " + submissionId + "complete and pushed for reporting","NO TEXT AVAILABLE");
                 return resolve(messageConstants.apiResponses.SUBMISSION_RATING_COMPLETED);
 
 
             } catch (error) {
-                emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
+                // emailClient.pushMailToEmailService(emailRecipients,messageConstants.apiResponses.SUBMISSION_AUTO_RATING_FAILED+" - "+submissionId,error.message);
                 return reject(error);
             }
         })
@@ -1316,7 +1336,6 @@ module.exports = class SubmissionsHelper {
                     "language",
                     "keywords",
                     "concepts",
-                    "createdFor",
                     "evidences"
                 ]
             );
@@ -1606,7 +1625,7 @@ module.exports = class SubmissionsHelper {
                 
                 let filePathToURLMap = {};
                 if (fileSourcePath.length > 0) {
-                    let evidenceUrls = await kendraService.getDownloadableUrl(
+                    let evidenceUrls = await coreService.getDownloadableUrl(
                         {
                             filePaths: fileSourcePath
                         }

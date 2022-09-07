@@ -8,6 +8,7 @@
 // Dependencies
 const kafkaClient = require(ROOT_PATH + "/generics/helpers/kafkaCommunications");
 const solutionsHelper = require(MODULES_BASE_PATH + "/solutions/helper");
+const programsHelper = require(MODULES_BASE_PATH + "/programs/helper");
 
 /**
     * SurveySubmissionsHelper
@@ -456,11 +457,11 @@ module.exports = class SurveySubmissionsHelper {
 
                 if ( filter && filter !== "" ) {
                     if( filter === messageConstants.common.CREATED_BY_ME ) {
-                        matchQuery["$match"]["isAPrivateProgram"] = {
+                        submissionMatchQuery["$match"]["isAPrivateProgram"] = {
                             $ne : false
                         };
                     } else if ( filter === messageConstants.common.ASSIGN_TO_ME ) {
-                        matchQuery["$match"]["isAPrivateProgram"] = false;
+                        submissionMatchQuery["$match"]["isAPrivateProgram"] = false;
                     }
                 }
 
@@ -503,15 +504,21 @@ module.exports = class SurveySubmissionsHelper {
                 )
 
                 if (surveySubmissions[0].data && surveySubmissions[0].data.length > 0) {
-                    surveySubmissions[0].data.forEach( async surveySubmission => {
+                    await Promise.all(surveySubmissions[0].data.map( async surveySubmission => {
+
+                        let solutionDetail = await solutionsHelper.solutionDocuments({
+                            _id : surveySubmission.solutionId
+                          },[
+                            "endDate"
+                        ]);
+
+                        let solutionEndDate;
+                        if(solutionDetail && solutionDetail.length > 0){
+                            solutionEndDate = solutionDetail[0].endDate;
+                        }
 
                         let submissionStatus = surveySubmission.status;
-
-                        if (surveyReportPage === "") {
-                            if (new Date() > new Date(surveySubmission.surveyInformation.endDate)) {
-                                surveySubmission.status = messageConstants.common.EXPIRED
-                           }
-                        }
+                        let isValid = true;
                         
                         surveySubmission.name = surveySubmission.surveyInformation.name;
                         surveySubmission.description = surveySubmission.surveyInformation.description;
@@ -519,20 +526,41 @@ module.exports = class SurveySubmissionsHelper {
                         delete surveySubmission.surveyId;
                         delete surveySubmission["surveyInformation"];
 
-                        if( !surveyReportPage ) {
+                        if (surveyReportPage === "") {
 
-                            if( submissionStatus === messageConstants.common.SUBMISSION_STATUS_COMPLETED ) {
+                            if (!(new Date() > new Date(solutionEndDate) && surveySubmission.status !== messageConstants.common.SUBMISSION_STATUS_COMPLETED)) {
                                 result.data.push(surveySubmission);
-                            } else {
-                                if ( surveySubmission.status !== messageConstants.common.EXPIRED ) {
+                            }
+
+                        }else if((gen.utils.convertStringToBoolean(surveyReportPage)) === false){
+
+                            surveySubmission.endDate = solutionEndDate;
+
+                            let validDate = new Date(solutionEndDate);
+                            validDate.setDate(validDate.getDate() + 15 );
+
+                            if(submissionStatus === messageConstants.common.SUBMISSION_STATUS_COMPLETED){
+                                result.data.push(surveySubmission);
+                            }else{
+
+                                if(new Date() > new Date(solutionEndDate)) {
+                                    if(new Date() > new Date(validDate)) {
+                                        isValid = false;
+                                    }
+                                    surveySubmission.status = messageConstants.common.EXPIRED;
+                                }
+                                
+                                if(isValid){
                                     result.data.push(surveySubmission);
                                 }
+                                
                             }
-                        } else {
+                        }else{
                             result.data.push(surveySubmission);
                         }
-                    })
-                    result.count = surveySubmissions[0].count ? result.count + surveySubmissions[0].count : result.count;
+
+                    }))
+                    result.count = (result.data && result.data.length > 0) ? result.data.length : result.count;
                 }
 
                 return resolve({
@@ -650,5 +678,63 @@ module.exports = class SurveySubmissionsHelper {
         }
     });
 }
+
+
+   /**
+   * Get survey submission details
+   * @method
+   * @name details
+   * @param {String} submissionId - survey submissionId
+   * @returns {JSON} - survey submission details
+   */
+
+    static details(submissionId) {
+        return new Promise(async (resolve, reject) => {
+            try {
+
+                let surveySubmissionsDocument = await this.surveySubmissionDocuments
+                ({
+                    _id: submissionId
+                })
+    
+                if (!surveySubmissionsDocument.length) {
+                    throw messageConstants.apiResponses.SUBMISSION_NOT_FOUND;
+                }
+
+                let solutionDocument = await solutionsHelper.solutionDocuments({
+                    _id: surveySubmissionsDocument[0].solutionId
+                }, [ "name","scoringSystem","description","questionSequenceByEcm"]);
+    
+                if(!solutionDocument.length){
+                    throw messageConstants.apiResponses.SOLUTION_NOT_FOUND;
+                }
+                
+                solutionDocument = solutionDocument[0];
+                surveySubmissionsDocument[0]['solutionInfo'] = solutionDocument;
+
+                let programDocument = 
+                await programsHelper.list(
+                    {
+                        _id: surveySubmissionsDocument[0].programId,
+                    },
+                    ["name","description"],
+                );
+    
+                if( !programDocument[0] ) {
+                    throw  messageConstants.apiResponses.PROGRAM_NOT_FOUND
+                }
+                surveySubmissionsDocument[0]['programInfo'] = programDocument[0];
+
+                return resolve(surveySubmissionsDocument[0]);
+
+            } catch (error) {
+                return reject({
+                    success: false,
+                    message: error,
+                    data: {}
+                });
+            }
+        })
+    }
 
 }

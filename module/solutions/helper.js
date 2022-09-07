@@ -815,22 +815,6 @@ module.exports = class SolutionsHelper {
               matchQuery["$match"]["subType"] = type;
             }
 
-            if( 
-              process.env.USE_USER_ORGANISATION_ID_FILTER && 
-              process.env.USE_USER_ORGANISATION_ID_FILTER === "ON" 
-            ) {
-
-              let organisationAndRootOrganisation = 
-              await shikshalokamHelper.getUserOrganisation(
-                token,
-                userId
-              );
-
-              matchQuery["$match"]["createdFor"] = {
-                $in : organisationAndRootOrganisation.createdFor
-              }
-            }
-
             matchQuery["$match"]["$or"] = [
               { 
                 "name": new RegExp(searchText, 'i') 
@@ -927,9 +911,7 @@ module.exports = class SolutionsHelper {
       program,
       userId,
       solutionData,
-      isAPrivateProgram = false,
-      createdFor = [],
-      rootOrganisations = []
+      isAPrivateProgram = false
   ) {
       return new Promise(async (resolve, reject) => {
           try {
@@ -948,9 +930,7 @@ module.exports = class SolutionsHelper {
                   description : solutionData.description,
                   name : program.name ? program.name : solutionData.name,
                   userId : userId,
-                  isAPrivateProgram : isAPrivateProgram,
-                  createdFor : createdFor,
-                  rootOrganisations : rootOrganisations
+                  isAPrivateProgram : isAPrivateProgram
                 });
                 
                 program._id = programData._id;
@@ -961,9 +941,7 @@ module.exports = class SolutionsHelper {
                 templateId,
                 program._id.toString(),
                 userId,
-                solutionData,
-                createdFor,
-                rootOrganisations
+                solutionData
               );
 
               return resolve(
@@ -1005,9 +983,7 @@ module.exports = class SolutionsHelper {
       solutionId,
       programId,
       userId,
-      data,
-      createdFor = "",
-      rootOrganisations = "" 
+      data
     ) {
       return new Promise(async (resolve, reject) => {
         try {
@@ -1088,6 +1064,20 @@ module.exports = class SolutionsHelper {
           }
           
           updateThemes(newSolutionDocument.themes);
+          // Replace criteria ids in flattend themes key
+          if ( newSolutionDocument["flattenedThemes"] && Array.isArray( newSolutionDocument["flattenedThemes"]) && newSolutionDocument["flattenedThemes"].length>0) {
+            for (let pointerToFlattenedThemesArray = 0; pointerToFlattenedThemesArray < newSolutionDocument["flattenedThemes"].length; pointerToFlattenedThemesArray++) {
+              let theme = newSolutionDocument["flattenedThemes"][pointerToFlattenedThemesArray];
+              if(theme.criteria && Array.isArray(theme.criteria) && theme.criteria.length >0) {
+                for (let pointerToThemeCriteriaArray = 0; pointerToThemeCriteriaArray < theme.criteria.length; pointerToThemeCriteriaArray++) {
+                  let criteria = theme.criteria[pointerToThemeCriteriaArray];
+                  if(criteriaIdMap[criteria.criteriaId.toString()]) {
+                    newSolutionDocument["flattenedThemes"][pointerToFlattenedThemesArray].criteria[pointerToThemeCriteriaArray].criteriaId = criteriaIdMap[criteria.criteriaId.toString()];
+                  }
+                }
+              }
+            }
+          }
 
           let startDate = new Date();
           let endDate = new Date();
@@ -1143,14 +1133,6 @@ module.exports = class SolutionsHelper {
           if( data.project ) {
             newSolutionDocument["project"] = data.project;
             newSolutionDocument["referenceFrom"] = messageConstants.common.PROJECT;
-          }
-
-          if( createdFor !== "" ) {
-            newSolutionDocument.createdFor = createdFor;
-          } 
-
-          if ( rootOrganisations !== "" ) {
-            newSolutionDocument.rootOrganisations = rootOrganisations;
           }
   
           let duplicateSolutionDocument = 
@@ -1646,10 +1628,9 @@ module.exports = class SolutionsHelper {
             "roles",
             "captureGpsLocationAtQuestionLevel",
             "enableQuestionReadOut",
-            "entities",
-            "criteriaLevelReport"
+            "entities"
         ])
-
+ 
           if( !solutionData.length > 0 ) {
             throw {
               message : messageConstants.apiResponses.SOLUTION_NOT_FOUND,
@@ -1988,6 +1969,88 @@ module.exports = class SolutionsHelper {
       } catch (error) {
         return reject(error);
       }
+    });
+  }
+
+  /**
+  * Update User District and Organisation In Solutions For Reporting.
+  * @method
+  * @name addReportInformationInSolution 
+  * @param {String} solutionId - solution id.
+  * @param {Object} userProfile - user profile details
+  * @returns {Object} Solution information.
+*/
+
+  static addReportInformationInSolution(solutionId,userProfile) {
+    return new Promise(async (resolve, reject) => {
+        try {
+
+            //check solution & userProfile is exist
+            if ( 
+                solutionId && userProfile && 
+                userProfile["userLocations"] && 
+                userProfile["organisations"]
+            ) {
+
+                let district = [];
+                let organisation = [];
+
+                //get the districts from the userProfile
+                for (const location of userProfile["userLocations"]) {
+                    if ( location.type == messageConstants.common.DISTRICT ) {
+                        let distData = {}
+                        distData["locationId"] = location.id;
+                        distData["name"] = location.name;
+                        district.push(distData);
+                    }
+                }
+
+                //get the organisations from the userProfile
+                for (const org of userProfile["organisations"]) {
+                    if ( !org.isSchool ) {
+                        let orgData = {};
+                        orgData.orgName = org.orgName;
+                        orgData.organisationId = org.organisationId;
+                        organisation.push(orgData);
+                    }
+                }
+
+                let updateQuery = {};
+                updateQuery["$addToSet"] = {};
+
+                if ( organisation.length > 0 ) {
+                    updateQuery["$addToSet"]["reportInformation.organisations"] = { $each : organisation};
+                }
+
+                if ( district.length > 0 ) {
+                    updateQuery["$addToSet"]["reportInformation.districts"] = { $each : district};
+                }
+                
+                //add user district and organisation in solution
+                if ( updateQuery["$addToSet"] && Object.keys(updateQuery["$addToSet"].length > 0)) {
+                    await this.updateSolutionDocument
+                    (
+                        { _id : solutionId },
+                        updateQuery
+                    )
+                }
+
+            } else {
+              throw new Error(messageConstants.apiResponses.SOLUTION_ID_AND_USERPROFILE_REQUIRED);
+            }
+            
+            return resolve({
+                success: true,
+                message: messageConstants.apiResponses.UPDATED_DOCUMENT_SUCCESSFULLY
+            });
+            
+        } catch (error) {
+            return resolve({
+              success : false,
+              message : error.message,
+              data: []
+            });
+        }
     });
   }  
 
