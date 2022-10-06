@@ -1,8 +1,14 @@
 module.exports = {
     name: "surveys",
     schema: {
-      name: String,
-      description: String,
+      name: {
+        type: String,
+        index: true
+      },
+      description: {
+        type: String,
+        index: true
+      },
       createdBy: {
         type: String,
         index: true,
@@ -29,8 +35,6 @@ module.exports = {
       startDate: Date,
       endDate: Date,
       status: String,
-      createdFor: [String],
-      rootOrganisations: [String],
       isDeleted: {
         type: Boolean,
         default: false
@@ -39,5 +43,11 @@ module.exports = {
         default : false,
         type : Boolean
       }
-    }
+    },
+    compoundIndex: [
+      {
+          "name" :{ createdBy: 1, solutionId: 1 },
+          "indexType" : { unique: true }
+      }
+    ]
   };

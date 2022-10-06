@@ -19,7 +19,6 @@
   "author": "Akash Shah <akash@tunerlabs.com>",
   "license": "ISC",
   "dependencies": {
-    "@elastic/elasticsearch": "^7.7.1",
     "body-parser": "^1.18.2",
     "bunyan": "^1.8.12",
     "cache-manager": "^2.9.0",
@@ -58,6 +57,7 @@
     "mongoose-timestamp": "^0.6.0",
     "mongoose-ttl": "0.0.3",
     "morgan": "^1.9.0",
+    "node-cache": "^5.1.2",
     "p-each-series": "^2.1.0",
     "path": "^0.12.7",
     "request": "^2.88.0",

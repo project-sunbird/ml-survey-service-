@@ -15,22 +15,20 @@ module.exports = {
       index : true
     },
     description: String,
-    author: String,
+    author: {
+      type : String,
+      index : true
+    },
     parentSolutionId: "ObjectId",
     resourceType: Array,
     language: Array,
     keywords: Array,
     concepts: Array,
-    createdFor: {
-      type : Array,
-      index : true
-    },
     scoringSystem: String,
     levelToScoreMapping: Object,
     themes: Array,
     flattenedThemes : Array,
     questionSequenceByEcm: Object,
-    entityTypeId: "ObjectId",
     entityType: String,
     type: {
       type: String,
@@ -80,7 +78,8 @@ module.exports = {
     linkUrl: String,
     isAPrivateProgram : {
       default : false,
-      type : Boolean
+      type : Boolean,
+      index: true
     },
     assessmentMetaFormKey : String,
     allowMultipleAssessemts : {
@@ -90,10 +89,6 @@ module.exports = {
     isDeleted: {
         default : false,
         type : Boolean
-    },
-    rootOrganisations : {
-      type : [String],
-      default : []
     },
     link: {
       type: String,
@@ -107,8 +102,10 @@ module.exports = {
       index: true
     },
     scope : {
-      entityType : String,
-      entityTypeId : "ObjectId",
+      entityType : {
+        type : String,
+        index : true
+      },
       entities : {
         type : Array,
         index : true
@@ -128,6 +125,12 @@ module.exports = {
     criteriaLevelReport : {
       default : false,
       type : Boolean
-    }
+    },
+    license:Object,
+    minNoOfSubmissionsRequired: {
+        type: Number,
+        default: 1
+    },
+    reportInformation : Object
   }
 };

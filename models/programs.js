@@ -19,7 +19,6 @@ module.exports = {
     language: [String],
     keywords: [String],
     concepts: ["json"],
-    createdFor: [String],
     imageCompression: {},
     components: ["json"],
     components: ["json"],
@@ -27,17 +26,12 @@ module.exports = {
       default : false,
       type : Boolean
     },
-    rootOrganisations : {
-      type : [String],
-      default : []
-    },
     isDeleted: {
       default : false,
       type : Boolean
     },
     scope : {
       entityType : String,
-      entityTypeId : "ObjectId",
       entities : {
         type : Array,
         index : true
