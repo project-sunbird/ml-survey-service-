@@ -225,7 +225,13 @@ module.exports = class ObservationsHelper {
                 }
 
                 //compare & update userProfile with userRoleInformation
-                if ( userRoleInformation && userProfileInformation ) {
+                if ( 
+                    userRoleInformation && 
+                    userProfileInformation &&
+                    Object.keys(userRoleInformation).length > 0 &&
+                    Object.keys(userProfileInformation).length > 0 
+                ){
+
                     let updatedUserProfile = await _updateUserProfileBasedOnUserRoleInfo(
                         userProfileInformation,
                         userRoleInformation
@@ -2302,7 +2308,7 @@ function _updateUserProfileBasedOnUserRoleInfo(userProfile, userRoleInformation)
                     let locationCodes = [];
 
                     Object.keys(_.omit(userRoleInformation,["role"])).forEach( requestedDataKey => {
-                        if ( UTILS.checkValidUUID(userRoleInformation[requestedDataKey])) {
+                        if ( gen.utils.checkIfValidUUID(userRoleInformation[requestedDataKey])) {
                             locationIds.push(userRoleInformation[requestedDataKey]);
                         } else {
                             locationCodes.push(userRoleInformation[requestedDataKey]);
