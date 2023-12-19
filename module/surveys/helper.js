@@ -1063,7 +1063,12 @@ module.exports = class SurveysHelper {
                     ) {
                         userProfileData = userProfile.data.response;
                         addReportInfoToSolution = true;
-                    } 
+                    } else {
+                      throw {
+                        message: messageConstants.apiResponses.FAILED_TO_START_RESOURCE,
+                        status: httpStatusCode.failed_dependency.status,
+                      }
+                    }
                     submissionDocument.userProfile = userProfileData;
                     
                     if (Object.keys(roleInformation).length > 0 && roleInformation.role) {
