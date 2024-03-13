@@ -126,6 +126,14 @@ module.exports = class QuestionsHelper {
 
             }
 
+            if(parsedQuestion["responseType"] == "text"){
+              if(parsedQuestion.hasOwnProperty("validationRegex")){
+                if(parsedQuestion["validationRegex"] !== ""){
+                  allValues["validation"]["regex"] = parsedQuestion["validationRegex"]
+                }
+              }
+            }
+
             if (parsedQuestion["responseType"] == "slider") {
               if (parsedQuestion["validationRegex"] == "IsNumber") {
                 allValues["validation"]["regex"] = "^[+-]?\d+(\.\d+)?$";
