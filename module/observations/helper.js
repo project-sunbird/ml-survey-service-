@@ -1824,11 +1824,12 @@ module.exports = class ObservationsHelper {
               solutionId: solutionId,
               createdBy: userId,
             },
-            ["_id"]
+            ["_id","entityType"]
           );
 
           if (observationData.length > 0) {
             observationId = observationData[0]._id;
+            await this.addEntityToObservation(observationId, [bodyData[observationData[0].entityType]], userId)
           } else {
             let solutionData
             if(validateEntities !== messageConstants.common.OFF){
