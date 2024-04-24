@@ -211,7 +211,7 @@ module.exports = class SurveySubmissions extends Abstract {
     return new Promise(async (resolve, reject) => {
 
       try {
-        if(env == "BM"){
+        if(env == messageConstants.common.BM){
           req.userDetails.userId = req.query.userId
         }
 

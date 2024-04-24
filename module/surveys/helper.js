@@ -958,7 +958,7 @@ module.exports = class SurveysHelper {
           let programJoinStatus =
             await programUsersHelper.checkForUserJoinedProgramAndConsentShared(
               programDocument[0]._id,
-              env == "BM" ? headerUserId : userId
+              env == messageConstants.common.BM ? headerUserId : userId
             );
 
           // if programJoined key is false, user not joined the program.
@@ -1138,7 +1138,7 @@ module.exports = class SurveysHelper {
             userProfile.data &&
             userProfile.data.response
           ) {
-            if(env == "BM"){
+            if(env == messageConstants.common.BM){
               userProfileData = userProfile.data.response;
               addReportInfoToSolution = true;
               userProfileData.userId = headerUserId;
@@ -1735,7 +1735,7 @@ module.exports = class SurveysHelper {
           bodyData,
           surveyId,
           solutionId,
-          env == "BM" ? headerUserId : userId,
+          env == messageConstants.common.BM ? headerUserId : userId,
           token
         );
 
@@ -1745,7 +1745,7 @@ module.exports = class SurveysHelper {
 
         let validateSurvey = await this.validateSurvey(
           surveyData.data,
-          env == "BM" ? headerUserId : userId,
+          env == messageConstants.common.BM ? headerUserId : userId,
           false
         );
 

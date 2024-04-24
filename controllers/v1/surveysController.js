@@ -634,7 +634,7 @@ module.exports = class Surveys extends Abstract {
             let appName = req.headers["x-app-id"]  ? req.headers["x-app-id"]  : req.headers.appname ? req.headers.appname : "";
             let validateSurveyId = gen.utils.isValidMongoId(req.params._id);
             let headerUserId = ""
-            if(process.env.APPLICATION_ENV =="BM"){
+            if(process.env.APPLICATION_ENV ==messageConstants.common.BM){
                 headerUserId = req.query.userId ? req.query.userId : ""
             }
 
