@@ -63,5 +63,6 @@ module.exports = {
     GET_METHOD : "GET",
     SUBENTITY :"subEntityTypesOf_",
     STATE: "state",
-    OFF: "OFF"
+    OFF: "OFF",
+    BM: "BM"
 }
