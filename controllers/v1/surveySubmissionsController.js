@@ -212,9 +212,8 @@ module.exports = class SurveySubmissions extends Abstract {
 
       try {
         if(env == messageConstants.common.BM){
-          req.userDetails.userId = req.query.userId
+          req.userDetails.userId = req.headers["userid"]
         }
-
         let isSubmissionAllowed = await surveySubmissionsHelper.isAllowed
         (
           req.params._id,
