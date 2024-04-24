@@ -8,7 +8,7 @@
 // Dependencies
 const surveySubmissionsHelper = require(MODULES_BASE_PATH + "/surveySubmissions/helper");
 const submissionsHelper = require(MODULES_BASE_PATH + "/submissions/helper");
-
+const env = process.env.APPLICATION_ENV
 /**
     * SurveySubmissions
     * @class
@@ -211,7 +211,9 @@ module.exports = class SurveySubmissions extends Abstract {
     return new Promise(async (resolve, reject) => {
 
       try {
-
+        if(env == messageConstants.common.BM){
+          req.userDetails.userId = req.headers["userid"]
+        }
         let isSubmissionAllowed = await surveySubmissionsHelper.isAllowed
         (
           req.params._id,

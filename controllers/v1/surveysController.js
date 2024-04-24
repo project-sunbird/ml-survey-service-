@@ -633,7 +633,10 @@ module.exports = class Surveys extends Abstract {
             let appVersion = req.headers["x-app-ver"] ? req.headers["x-app-ver"] : req.headers.appversion ? req.headers.appversion : "";
             let appName = req.headers["x-app-id"]  ? req.headers["x-app-id"]  : req.headers.appname ? req.headers.appname : "";
             let validateSurveyId = gen.utils.isValidMongoId(req.params._id);
-
+            let headerUserId = ""
+            if(process.env.APPLICATION_ENV ==messageConstants.common.BM){
+                headerUserId = req.headers["userid"] ? req.headers["userid"] : ""
+            }
             let surveyDetails = {};
 
             if( validateSurveyId || req.query.solutionId ) {
@@ -648,7 +651,8 @@ module.exports = class Surveys extends Abstract {
                     req.userDetails.userId,
                     req.userDetails.userToken,
                     appVersion,
-                    appName
+                    appName,
+                    headerUserId
                 );
                 
             } else {
