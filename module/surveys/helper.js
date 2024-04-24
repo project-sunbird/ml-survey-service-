@@ -27,6 +27,7 @@ const questionsHelper = require(MODULES_BASE_PATH + "/questions/helper");
 const userProfileService = require(ROOT_PATH + "/generics/services/users");
 const programUsersHelper = require(MODULES_BASE_PATH + "/programUsers/helper");
 const programJoinEnabled = process.env.PROGRAM_JOIN_ON_OFF
+const env = process.env.APPLICATION_ENV
 /**
  * SurveysHelper
  * @class
@@ -839,7 +840,8 @@ module.exports = class SurveysHelper {
     roleInformation = {},
     userToken = "",
     appVersion = "",
-    appName = ""
+    appName = "",
+    headerUserId = ""
   ) {
     return new Promise(async (resolve, reject) => {
       try {
@@ -956,7 +958,7 @@ module.exports = class SurveysHelper {
           let programJoinStatus =
             await programUsersHelper.checkForUserJoinedProgramAndConsentShared(
               programDocument[0]._id,
-              userId
+              env == "BM" ? headerUserId : userId
             );
 
           // if programJoined key is false, user not joined the program.
@@ -1136,8 +1138,14 @@ module.exports = class SurveysHelper {
             userProfile.data &&
             userProfile.data.response
           ) {
-            userProfileData = userProfile.data.response;
-            addReportInfoToSolution = true;
+            if(env == "BM"){
+              userProfileData = userProfile.data.response;
+              addReportInfoToSolution = true;
+              userProfileData.userId = headerUserId;
+            }else{
+              userProfileData = userProfile.data.response;
+              addReportInfoToSolution = true;
+            }
           } else {
             throw {
               message: messageConstants.apiResponses.FAILED_TO_START_RESOURCE,
@@ -1718,7 +1726,8 @@ module.exports = class SurveysHelper {
     userId = "",
     token = "",
     appVersion = "",
-    appName = ""
+    appName = "",
+    headerUserId=""
   ) {
     return new Promise(async (resolve, reject) => {
       try {
@@ -1726,7 +1735,7 @@ module.exports = class SurveysHelper {
           bodyData,
           surveyId,
           solutionId,
-          userId,
+          env == "BM" ? headerUserId : userId,
           token
         );
 
@@ -1736,7 +1745,7 @@ module.exports = class SurveysHelper {
 
         let validateSurvey = await this.validateSurvey(
           surveyData.data,
-          userId,
+          env == "BM" ? headerUserId : userId,
           false
         );
 
@@ -1751,7 +1760,8 @@ module.exports = class SurveysHelper {
           bodyData,
           token,
           appVersion,
-          appName
+          appName,
+          headerUserId
         );
 
         if (!surveyDetails.success) {
