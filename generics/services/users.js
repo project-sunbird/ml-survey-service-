@@ -14,6 +14,8 @@ const jwt = require("jsonwebtoken");
 const profile = function (token, userId = "") {
   return new Promise(async (resolve, reject) => {
     try {
+      let headerUserId = userId;
+
       if (env === messageConstants.common.BM) {
         let decoded = jwt.decode(token, { complete: true });
         userId = decoded.payload.sub.split(":").pop();
@@ -50,6 +52,9 @@ const profile = function (token, userId = "") {
           } else {
             result.success = false;
           }
+        }
+        if (env === messageConstants.common.BM) {
+          result.data.response.userId = headerUserId;
         }
 
         return resolve(result);
