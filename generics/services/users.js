@@ -49,12 +49,12 @@ const profile = function (token, userId = "") {
           let response = JSON.parse(data.body);
           if (response.responseCode === httpStatusCode["ok"].code) {
             result["data"] = response.result;
+            if (env === messageConstants.common.BM) {
+              result.data.response.userId = headerUserId;
+            }
           } else {
             result.success = false;
           }
-        }
-        if (env === messageConstants.common.BM) {
-          result.data.response.userId = headerUserId;
         }
 
         return resolve(result);
