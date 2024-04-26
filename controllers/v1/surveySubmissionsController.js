@@ -279,6 +279,65 @@ module.exports = class SurveySubmissions extends Abstract {
     })
   }
 
+  /**
+   * @api {post} /assessment/api/v1/surveySubmissions/pushCompletedSurveySubmissionInKafka/{{submissionId}} Push Survey Submission in kafka
+   * @apiVersion 1.0.0
+   * @apiName Push Survey Submission
+   * @apiGroup Survey Submissions
+   * @apiParamExample {json} Response:
+   * {
+   *   "status": 200,
+   *   "message": "Kafka push to topic dev.sl.survey.raw successful with number - 11"
+   * }
+   * @apiUse successBody
+   * @apiUse errorBody
+   */
+
+  /**
+   * push survey submissions in kafka.
+   * @method
+   * @name pushCompletedSurveySubmissionInKafka
+   * @param {ObjectId} req - submissionId
+   * @returns {JSON} - survey submissions pushed status.
+   */
+
+  async pushCompletedSurveySubmissionInKafka(req) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        let submissionId = req.params._id;
+        let surveySubmissionDocument =
+          await surveySubmissionsHelper.surveySubmissionDocuments(
+            { _id: submissionId },
+            ["status"]
+          );
+        if (
+          surveySubmissionDocument.length > 0 &&
+          surveySubmissionDocument[0].status ===
+            messageConstants.common.SUBMISSION_STATUS_COMPLETED
+        ) {
+          let pushedEvent =
+            await surveySubmissionsHelper.pushCompletedSurveySubmissionForReporting(
+              req.params._id
+            );
+          return resolve({
+            status: httpStatusCode.ok.status,
+            message: pushedEvent.message,
+          });
+        } else {
+          return resolve({
+            status: httpStatusCode.not_found.status,
+            message: messageConstants.apiResponses.SURVEY_SUBMISSION_NOT_FOUND,
+          });
+        }
+      } catch (err) {
+        return reject({
+          status: err.status || httpStatusCode.internal_server_error.status,
+          message: err.message || httpStatusCode.internal_server_error.message,
+          errorObject: err,
+        });
+      }
+    });
+  }
   
   /**
   * @api {get} /assessment/api/v1/surveySubmissions/isAllowed/:surveySubmissionId?evidenceId=SF Check Submissions Status 
