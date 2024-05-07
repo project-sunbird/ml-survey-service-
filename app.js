@@ -66,7 +66,7 @@ if (process.env.APPLICATION_ENV == "BM") {
   const server = app.listen(process.env.APPLICATION_PORT, () => {
     console.log("Environment: " + process.env.APPLICATION_ENV);
     console.log(
-      "Application is running on the port running in BM" +
+      "Application is running on the port running in BM " +
         process.env.APPLICATION_PORT
     );
   });
@@ -74,10 +74,11 @@ if (process.env.APPLICATION_ENV == "BM") {
   return server;
 } else {
   //listen to given port
-  app.listen(process.env.APPLICATION_PORT, () => {
+  const server = app.listen(process.env.APPLICATION_PORT, () => {
     console.log("Environment: " + process.env.APPLICATION_ENV);
     console.log(
-      "Application is running on the port:" + process.env.APPLICATION_PORT
+      "Application is running on the port: " + process.env.APPLICATION_PORT
     );
   });
+  return server;
 }
