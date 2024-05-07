@@ -62,11 +62,12 @@ app.all("*", (req, res, next) => {
 router(app);
 
 //listen to given port
-if (process.env.APPLICATION_ENV !== "BM") {
+if (process.env.APPLICATION_ENV == "BM") {
   const server = app.listen(process.env.APPLICATION_PORT, () => {
     console.log("Environment: " + process.env.APPLICATION_ENV);
     console.log(
-      "Application is running on the port:" + process.env.APPLICATION_PORT
+      "Application is running on the port running in BM" +
+        process.env.APPLICATION_PORT
     );
   });
   server.keepAliveTimeout = 60000 * 120;
