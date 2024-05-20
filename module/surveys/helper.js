@@ -976,7 +976,7 @@ module.exports = class SurveysHelper {
         assessment.name = solutionDocument.name;
         assessment.description = solutionDocument.description;
         assessment.externalId = solutionDocument.externalId;
-
+        assessment.endDate =surveyDocument.endDate;
         let criteriaId = solutionDocument.themes[0].criteria[0].criteriaId;
         let weightage = solutionDocument.themes[0].criteria[0].weightage;
 
