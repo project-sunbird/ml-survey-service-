@@ -82,6 +82,7 @@ module.exports = class SurveysHelper {
 
         return resolve(surveyDocuments);
       } catch (error) {
+        console.error(error)
         return resolve({
           success: false,
           message: error.message,
@@ -606,6 +607,7 @@ module.exports = class SurveysHelper {
           },
         });
       } catch (error) {
+        console.error(error);
         return resolve({
           success: false,
           message: error.message,
@@ -1210,6 +1212,7 @@ module.exports = class SurveysHelper {
           data: result,
         });
       } catch (error) {
+        console.log(error);
         return reject({
           success: false,
           message: error.message,
@@ -1332,6 +1335,7 @@ module.exports = class SurveysHelper {
           },
         });
       } catch (error) {
+        console.log(error);
         return resolve({
           success: false,
           message: error.message,
@@ -1688,6 +1692,7 @@ module.exports = class SurveysHelper {
           data: surveyId,
         });
       } catch (error) {
+        console.error(error)
         return resolve({
           success: false,
           message: error.message,
@@ -1764,6 +1769,7 @@ module.exports = class SurveysHelper {
           data: surveyDetails.data,
         });
       } catch (error) {
+        console.error(error)
         return resolve({
           success: false,
           message: error.message,
