@@ -374,11 +374,11 @@ module.exports = class SurveysHelper {
                         }
                     )
      
-                    let appDetails = await coreService.getAppDetails(appName);
+                    // let appDetails = await coreService.getAppDetails(appName);
                     
-                    if (appDetails.result == false) {
-                        throw new Error(messageConstants.apiResponses.APP_NOT_FOUND);
-                    }
+                    // if (appDetails.result == false) {
+                    //     throw new Error(messageConstants.apiResponses.APP_NOT_FOUND);
+                    // }
 
                     return resolve({
                         success: true,
@@ -1783,11 +1783,11 @@ module.exports = class SurveysHelper {
                     throw new Error(messageConstants.apiResponses.SOLUTION_NOT_FOUND)
                 }
 
-                let appDetails = await coreService.getAppDetails(appName);
+                // let appDetails = await coreService.getAppDetails(appName);
                 
-                if(appDetails.result === false){
-                    throw new Error(messageConstants.apiResponses.APP_NOT_FOUND);
-                }
+                // if(appDetails.result === false){
+                //     throw new Error(messageConstants.apiResponses.APP_NOT_FOUND);
+                // }
 
                 let link = appsPortalBaseUrl + appName + messageConstants.common.TAKE_SURVEY + surveyData[0].link;
 
