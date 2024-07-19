@@ -51,7 +51,7 @@ let ID = args[0];
                     try{
                         let pushAction = await surveySubmissionsControllerInstance.pushCompletedSurveySubmissionInKafka({
                             params:{
-                                _id:currentBatch[i]._id
+                                _id:currentBatch[j]._id
                             }
                         })
                         
