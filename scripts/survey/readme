@@ -1,0 +1,21 @@
+## Migrations
+
+#### Steps to run the script files
+
+This script is intended to remedy to push completed surveySubmission records to kafka and it is related to the 6.0.0 branch
+
+### Step 1:
+
+    Navigate to /opt/projects/scripts/survey/
+
+### Step 2:
+
+Run the script to delete duplicate projects.
+
+    node pushcompletedsubmissions.js id
+
+    note: id here can be submission_id that is _id from surveySubmission collection or solution_id based on which it will query the db to find the records.
+
+#### Validation 
+
+After the script has been executed in the staging environment, all the pushed topics to kafka those ids will be stored in "pushedTopics.txt" file.

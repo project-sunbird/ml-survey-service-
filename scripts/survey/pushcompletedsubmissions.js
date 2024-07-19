@@ -18,12 +18,11 @@ let url = mongoUrl.split(dbName)[0];
 var MongoClient = require('mongodb').MongoClient;
 var ObjectId = require('mongodb').ObjectID;
 const args = process.argv.slice(2);
-
-let surveySubmissionsControllerClass = require('../../controllers/v1/surveySubmissionsController');
-let surveySubmissionsControllerInstance = new surveySubmissionsControllerClass;
-
+const surveySubmissionsHelper = require(MODULES_BASE_PATH + "/surveySubmissions/helper");
+const fs = require('fs');
+const utils = require('../../generics/helpers/utils')
 let ID = args[0];
-
+let successArray = [];
 (async () => {
 
     let connection = await MongoClient.connect(url, { useNewUrlParser: true, useUnifiedTopology: true });
@@ -49,12 +48,14 @@ let ID = args[0];
                 for(let j=0;j<currentBatch.length;j++){
 
                     try{
-                        let pushAction = await surveySubmissionsControllerInstance.pushCompletedSurveySubmissionInKafka({
-                            params:{
-                                _id:currentBatch[j]._id
-                            }
-                        })
+                        let pushAction = await surveySubmissionsHelper.pushCompletedSurveySubmissionForReporting(currentBatch[j]._id)
                         
+                        console.log(pushAction,'pushAction')
+
+                        if(pushAction.status == 'success'){
+                            successArray.push(currentBatch[j]._id)
+                        }
+
                     }catch(err){
                         console.log(err,'Error caught')
                     }
@@ -76,12 +77,13 @@ let ID = args[0];
         }
 
         try{
-            let pushAction = await surveySubmissionsControllerInstance.pushCompletedSurveySubmissionInKafka({
-                params:{
-                    _id:surveySubmissionsRecordsSingle._id
-                }
-            })
-         
+            let pushAction = await surveySubmissionsHelper.pushCompletedSurveySubmissionForReporting(surveySubmissionsRecordsSingle._id)
+            console.log(pushAction,'pushAction')
+
+            if(pushAction.status == 'success'){
+                successArray.push(surveySubmissionsRecordsSingle._id)
+            }
+
         }catch(err){
             console.log(err,'Error caught')
         }
@@ -89,6 +91,8 @@ let ID = args[0];
 
 
       }
+
+      fs.writeFileSync('./scripts/survey/pushedTopics'+utils.generateUUId()+'.txt',JSON.stringify(successArray));
 
       console.log("completed");
       connection.close();
