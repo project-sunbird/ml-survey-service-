@@ -14,7 +14,7 @@ Run the script to delete duplicate projects.
 
     node pushcompletedsubmissions.js id
 
-    note: id here can be submission_id that is _id from surveySubmission collection or solution_id based on which it will query the db to find the records.
+    note: id here can be submission_id that is _id from surveySubmission collection or solution_id based on which it will query the surveySubmission collection to find the records.
 
 #### Validation 
 
