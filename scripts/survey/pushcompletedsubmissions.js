@@ -21,7 +21,10 @@ const args = process.argv.slice(2);
 const surveySubmissionsHelper = require(MODULES_BASE_PATH + "/surveySubmissions/helper");
 const fs = require('fs');
 const utils = require('../../generics/helpers/utils')
-let ID = args[0];
+let IDString = args[0];
+
+let IDArray = IDString.split(',');
+
 let successArray = [];
 (async () => {
 
@@ -30,70 +33,53 @@ let successArray = [];
 
     try {
         // if it is a solution id
-      let surveySubmissionsRecords = await db
+      let firstRecordSet = await db
         .collection("surveySubmissions")
-        .find({solutionId:ObjectId(ID),status:"completed"})
-        .toArray();   
+        .find({solutionId:{$in:IDArray.map(id=>ObjectId(id))},status:"completed"})
+        .toArray(); 
+
+      let secondRecordSet = await db
+        .collection("surveySubmissions")
+        .find({_id:{$in:IDArray.map(id=>ObjectId(id))},status:"completed"})
+        .toArray(); 
+
+    if(firstRecordSet && firstRecordSet.length > 0)
+    {
+        surveySubmissionsRecords = firstRecordSet;
+    }else if(secondRecordSet && secondRecordSet.length >0)
+    {
+        surveySubmissionsRecords = secondRecordSet;
+    }else {
+        throw new Error("No record found.")  
+    }
       
-      if(surveySubmissionsRecords && surveySubmissionsRecords.length > 0)
-      {
+    let chunkOfsurveySubmissionsRecords = _.chunk(surveySubmissionsRecords, 10);
 
+    for (let i = 0; i < chunkOfsurveySubmissionsRecords.length; i++) {
+      let currentBatch = chunkOfsurveySubmissionsRecords[i];
 
-        let chunkOfsurveySubmissionsRecords = _.chunk(surveySubmissionsRecords, 10);
+      for (let j = 0; j < currentBatch.length; j++) {
+        try {
+          let pushAction =
+            await surveySubmissionsHelper.pushCompletedSurveySubmissionForReporting(
+              currentBatch[j]._id
+            );
 
-        for(let i=0;i<chunkOfsurveySubmissionsRecords.length;i++){
+          console.log(pushAction, "pushAction");
 
-            let currentBatch = chunkOfsurveySubmissionsRecords[i];
-
-                for(let j=0;j<currentBatch.length;j++){
-
-                    try{
-                        let pushAction = await surveySubmissionsHelper.pushCompletedSurveySubmissionForReporting(currentBatch[j]._id)
-                        
-                        console.log(pushAction,'pushAction')
-
-                        if(pushAction.status == 'success'){
-                            successArray.push(currentBatch[j]._id)
-                        }
-
-                    }catch(err){
-                        console.log(err,'Error caught')
-                    }
-
-                }
-
+          if (pushAction.status == "success") {
+            successArray.push(currentBatch[j]._id);
+          }
+        } catch (err) {
+          console.log(err, "Error caught");
         }
-
-
-      }else {
-        // if it is a submission id
-        let surveySubmissionsRecordsSingle = await db
-        .collection("surveySubmissions")
-        .findOne({_id:ObjectId(ID),status:"completed"})
-        
-        if(!surveySubmissionsRecordsSingle)
-        {
-            throw new Error("No record found with that submission id")
-        }
-
-        try{
-            let pushAction = await surveySubmissionsHelper.pushCompletedSurveySubmissionForReporting(surveySubmissionsRecordsSingle._id)
-            console.log(pushAction,'pushAction')
-
-            if(pushAction.status == 'success'){
-                successArray.push(surveySubmissionsRecordsSingle._id)
-            }
-
-        }catch(err){
-            console.log(err,'Error caught')
-        }
-
-
-
       }
-
-      fs.writeFileSync('./scripts/survey/pushedTopics'+utils.generateUUId()+'.txt',JSON.stringify(successArray));
-
+    }
+    
+    fs.writeFile('./scripts/survey/pushedTopics'+utils.generateUUId()+'.txt', JSON.stringify(successArray), (err) => {
+        if (err) throw err;
+            console.log('The file has been saved!')
+    })
       console.log("completed");
       connection.close();
     }
