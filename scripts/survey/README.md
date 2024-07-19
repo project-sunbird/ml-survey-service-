@@ -2,7 +2,7 @@
 
 #### Steps to run the script files
 
-This script is intended to remedy to push completed surveySubmission records to kafka and it is related to the 6.0.0 branch
+This script is intended as a remedy to push completed surveySubmission records to kafka and it is related to the 6.0.0 branch
 
 ### Step 1:
 
