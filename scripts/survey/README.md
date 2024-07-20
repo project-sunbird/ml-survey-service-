@@ -16,6 +16,11 @@ Run the script to delete duplicate projects.
 
     note: id here can be submission_id that is _id from surveySubmission collection or solution_id based on which it will query the surveySubmission collection to find the records.
 
+    Multiple IDs support:
+
+    You can also provide multiple IDs by separating them with commas.
+    Example: node pushcompletedsubmissions.js id1,id2,id3
+
 #### Validation 
 
 After the script has been executed in the staging environment, all the pushed topics to kafka those ids will be stored in "pushedTopics.txt" file.
