@@ -76,7 +76,7 @@ let successArray = [];
       }
     }
     
-    fs.writeFile('./scripts/survey/pushedMessages'+utils.generateUUId()+'.txt', JSON.stringify(successArray), (err) => {
+    fs.writeFile('./pushedMessages'+utils.generateUUId()+'.txt', JSON.stringify(successArray), (err) => {
         if (err) throw err;
             console.log('The file has been saved!')
     })
