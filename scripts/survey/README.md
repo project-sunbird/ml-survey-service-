@@ -6,11 +6,11 @@ This script is intended as a remedy to push completed surveySubmission records t
 
 ### Step 1:
 
-    Navigate to /opt/projects/scripts/survey/
+    Navigate to Project Directory 
 
 ### Step 2:
 
-Run the script to delete duplicate projects.
+Run the script to push completed surveySubmission records to kafka.
 
     node pushcompletedsubmissions.js id
 
@@ -23,4 +23,4 @@ Run the script to delete duplicate projects.
 
 #### Validation 
 
-After the script has been executed in the staging environment, all the pushed topics to kafka those ids will be stored in "pushedTopics.txt" file.
+After the script has been executed in the environment, all the successfully pushed messages to kafka, those submission_ids will be stored in "pushedMessages.txt" file.
