@@ -8,6 +8,8 @@ This script is intended as a remedy to push completed surveySubmission records t
 
     Navigate to Project Directory 
 
+    Move to scripts/survey location
+
 ### Step 2:
 
 Run the script to push completed surveySubmission records to kafka.
