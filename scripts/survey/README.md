@@ -20,8 +20,8 @@ Run the script to push completed surveySubmission records to kafka.
 
     Multiple IDs support:
 
-    You can also provide multiple IDs by separating them with commas.
-    Example: node pushcompletedsubmissions.js id1,id2,id3
+    You can also provide multiple IDs by separating them with commas and wrapped in single quotes.
+    Example: node pushcompletedsubmissions.js 'id1,id2,id3'
 
 #### Validation 
 
