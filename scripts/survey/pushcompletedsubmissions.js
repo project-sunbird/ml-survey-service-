@@ -4,7 +4,7 @@
  * created-date : 18-JULY-2024
  * Description : Migration script to push completed survey submissions to kafka
  */
-
+const mongoose = require('mongoose');
 const path = require("path");
 let rootPath = path.join(__dirname, '../../')
 require('dotenv').config({ path: rootPath+'/.env' })
@@ -21,9 +21,28 @@ const args = process.argv.slice(2);
 const surveySubmissionsHelper = require(MODULES_BASE_PATH + "/surveySubmissions/helper");
 const fs = require('fs');
 const utils = require('../../generics/helpers/utils')
+
 let IDString = args[0];
 
-let IDArray = IDString.split(',');
+console.log('IDString:',IDString)
+
+if(!IDString || IDString.length <= 0){
+  throw new Error('No Ids is passed in the terminal.');
+}
+
+let IDArray = IDString.split(',').map(id => id.trim()).filter(id => id.length > 0);;
+
+console.log('processing...',IDArray);
+
+if(IDArray.length <= 0){
+  throw new Error('No Id/Ids found');
+}
+
+IDArray.forEach((id)=>{
+  if(!mongoose.Types.ObjectId.isValid(id)){
+    throw new Error(id+' is not a valid mongoID');
+  }
+})
 
 let successArray = [];
 (async () => {
