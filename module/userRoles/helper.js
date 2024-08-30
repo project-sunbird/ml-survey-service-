@@ -62,7 +62,6 @@ module.exports = class UserRolesHelper {
                         try {
                             
                             userRole = gen.utils.valueParser(userRole);
-
                             if(userRole.entityTypes != "") {
                                 let roleEntityTypes = userRole.entityTypes.split(",");
                                 roleEntityTypes = _.uniq(roleEntityTypes);
@@ -93,13 +92,12 @@ module.exports = class UserRolesHelper {
                             let newRole = await database.models.userRoles.create(
                                 _.merge({
                                     "status" : "active",
-                                    "updatedBy": userDetails.id,
-                                    "createdBy": userDetails.id
+                                    "updatedBy": userDetails?userDetails.id:"SYSTEM",
+                                    "createdBy": userDetails?userDetails.id:"SYSTEM"
                                 },userRole)
                             );
 
                             delete userRole.entityTypes;
-
                             if (newRole._id) {
                                 userRole["_SYSTEM_ID"] = newRole._id; 
                                 userRole.status = "Success";
