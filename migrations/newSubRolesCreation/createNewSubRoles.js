@@ -34,88 +34,140 @@ function generateUUId() {
     const extractedCsvData = await csv().fromFile(filePath);
     if (extractedCsvData.length > 0) {
       let newRolesToCreate = [];
-      // Loop through CSV data to check for role update or create
+      // Loop through CSV data to check for new roles to create
       for (let i = 0; i < extractedCsvData.length; i++) {
-        if (
-          extractedCsvData[i].OldRolesCode !== extractedCsvData[i].NewRolesCode
-        ) {
-          let newRolesCode = extractedCsvData[i].NewRolesCode;
-
+        if (extractedCsvData[i].newRoleCode) {
+          let newRoleCode = extractedCsvData[i].newRoleCode;
           let roleToUpdate = await db
             .collection("userRoles")
-            .find({ code: newRolesCode })
+            .find({ code: newRoleCode })
             .toArray();
+
           if (!(roleToUpdate.length > 0)) {
             let roleData = {
-              code: newRolesCode,
-              entityTypes: extractedCsvData[i].EntityType,
-              title: extractedCsvData[i].Tittle,
+              code: newRoleCode,
+              entityTypes: extractedCsvData[i].mandatoryEntityTypes,
+              title: extractedCsvData[i].title,
             };
-            newRolesToCreate.push(roleData);
-          }
-        }
-      }
-
-    // Create new roles in the database
-      let roleCreationResponse = await UserRolesHelper.bulkCreate(newRolesToCreate);
-      let updatedSolutions = [];
-      let updatedPrograms = [];
-
-    // If roles were successfully created, proceed with updating solutions and programs
-      if (roleCreationResponse[0].status === "Success") {
-        for (let i = 0; i < roleCreationResponse.length; i++) {
-          let newUserRoleCode = roleCreationResponse[i].code;
-          for (let j = 0; j < extractedCsvData.length; j++) {
-            if (extractedCsvData[j].NewRolesCode === newUserRoleCode) {
-              let roleUpdateinScope = extractedCsvData[j];
-
-             // Retrieve the role's ID and code for update
-              let roleToUpdate = await db
-                .collection("userRoles")
-                .findOne(
-                  { code: newUserRoleCode },
-                  { projection: { _id: 1, code: 1 } }
-                );
-              if (roleToUpdate) {
-                let matchQuery = {
-                  "scope.roles.code": roleUpdateinScope.OldRolesCode,
-                };
-
-                let updatedRole = {
-                  $addToSet: { "scope.roles": roleToUpdate },
-                };
-                let projection = {
-                  projection: { _id: 1, externalId: 1, name: 1 },
-                };
-
-                // Update roles in program and solutions collection
-                await db
-                  .collection("solutions")
-                  .updateMany(matchQuery, updatedRole);
-
-                await db
-                  .collection("programs")
-                  .updateMany(matchQuery, updatedRole);
-                
-              // Retrieve the updated solutions and programs
-
-                let updatedSolutionsData = await db
-                  .collection("solutions")
-                  .find(matchQuery, projection)
-                  .toArray();
-                let UpdatedProgramData = await db
-                  .collection("programs")
-                  .find(matchQuery, projection)
-                  .toArray();
-
-                updatedSolutions.push(updatedSolutionsData);
-                updatedPrograms.push(UpdatedProgramData);
-              }
+            // Check if the role is already in the newRolesToCreate array
+            let roleExists = newRolesToCreate.some(
+              (role) => role.code === newRoleCode
+            );
+            if (!roleExists) {
+              newRolesToCreate.push(roleData);
             }
           }
         }
       }
 
+      // Create new roles in the database
+      let roleCreationResponse = await UserRolesHelper.bulkCreate(
+        newRolesToCreate
+      );
+
+      // Loop through CSV data to check for old roles to update mandatoryFields
+      let oldRolesToUpdate = [];
+
+      for (let i = 0; i < extractedCsvData.length; i++) {
+        if (
+          extractedCsvData[i].oldRoleCode &&
+          extractedCsvData[i].oldRoleCode.length > 0
+        ) {
+          let oldRoleCode = extractedCsvData[i].oldRoleCode;
+
+          let roleToUpdate = await db
+            .collection("userRoles")
+            .find({ code: oldRoleCode })
+            .toArray();
+          //Check role is already exits in db or not
+          if (roleToUpdate.length > 0) {
+            let mandatoryEntityTypes = extractedCsvData[i].mandatoryEntityTypes
+              .split(",")
+              .map((entity) => {
+                return { entityType: entity.trim() }; // Split the string and trim any extra spaces
+              });
+            let updatedDocument;
+
+            for (let entityType of mandatoryEntityTypes) {
+              updatedDocument = await db
+                .collection("userRoles")
+                .findOneAndUpdate(
+                  { code: oldRoleCode },
+                  {
+                    $addToSet: {
+                      entityTypes: entityType,
+                    },
+                  },
+                  {
+                    returnDocument: "after",
+                    projection: {
+                      _id: 1,
+                      code: 1,
+                      entityTypes: 1,
+                      title: 1,
+                    },
+                  }
+                );
+            }
+            oldRolesToUpdate.push(updatedDocument);
+          }
+        }
+      }
+
+      let updatedSolutions = [];
+      let updatedPrograms = [];
+
+      // updating solutions and programs
+     
+      for (let j = 0; j < extractedCsvData.length; j++) {
+        let roleUpdateinScope = extractedCsvData[j];
+
+        if(extractedCsvData[j].oldRoleCode.length>0 && extractedCsvData[j].newRoleCode.length>0){
+             // Retrieve the role's ID and code for update
+             let roleToUpdate = await db
+             .collection("userRoles")
+             .findOne(
+               { code: roleUpdateinScope.newRoleCode },
+               { projection: { _id: 1, code: 1 } }
+             );
+            
+              let matchQuery = {
+                "scope.roles.code": roleUpdateinScope.oldRoleCode
+                ,
+              };
+
+              let updatedRole = {
+                $addToSet: { "scope.roles": roleToUpdate },
+              };
+              let projection = {
+                projection: { _id: 1, externalId: 1, name: 1 },
+              };
+              // Update roles in program and solutions collection
+              await db
+                .collection("solutions")
+                .updateMany(matchQuery, updatedRole);
+
+              await db
+                .collection("programs")
+                .updateMany(matchQuery, updatedRole);
+
+              // Retrieve the updated solutions and programs
+
+              let updatedSolutionsData = await db
+                .collection("solutions")
+                .find(matchQuery, projection)
+                .toArray();
+              let UpdatedProgramData = await db
+                .collection("programs")
+                .find(matchQuery, projection)
+                .toArray();
+
+              updatedSolutions.push(updatedSolutionsData);
+              updatedPrograms.push(UpdatedProgramData);
+             
+        }
+       
+      }
       fs.writeFileSync(
         "updated_solution_records" + generateUUId() + ".txt",
         JSON.stringify(updatedSolutions)
@@ -127,6 +179,10 @@ function generateUUId() {
       fs.writeFileSync(
         "created_new_Roles" + generateUUId() + ".txt",
         JSON.stringify(roleCreationResponse)
+      );
+      fs.writeFileSync(
+        "Updated_old_Roles" + generateUUId() + ".txt",
+        JSON.stringify(oldRolesToUpdate)
       );
       console.log("Script execution completed");
       process.exit(1);
