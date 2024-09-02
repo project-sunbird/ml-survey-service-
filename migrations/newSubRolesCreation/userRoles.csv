@@ -1,0 +1,29 @@
+oldRoleCode,newRoleCode,title,mandatoryEntityTypes
+TEACHER,Teacher-preschool,Teacher (Preschool- Class 2),"state,district,block,cluster,school"
+TEACHER,Teacher-class-1-5,Teacher (Class 1-5),"state,district,block,cluster,school"
+TEACHER,Teacher-class-3-5,Teacher (Class 3-5),"state,district"
+TEACHER,Teacher-class-6-8,Teacher (Class 6-8),"state,district,block,cluster,school"
+,,Teacher (Class 6-10),
+,,Teacher (Class 9-10),
+,,Teacher (Class 11-12),
+,,Special Educators,
+,,Physical Education Teacher,
+,,Art/Music/Performing Teacher,
+,,Counsellor,
+,,Warden/Caretaker,
+,,Anganwadi Worker,
+,,Anganwadi Helper,
+,,Principal/Head Teacher,
+,,Vice Principal/Asst. Head Teacher,
+,,Secretary (School Education),
+,,Director (SCERT),
+,,State Project Director,
+,,Additional State Project Director,
+,,Teacher Educator (SCERT),
+,,Teacher Educator (DIET),
+,,Teacher Educator (IASE),
+,,Teacher Educator (Univ Deptt),
+,,Teacher Educator (TEI),
+,,Teacher Educator (SIET),
+,,Block Resource Centre Coordinator (BRCC),
+,,Cluster Resource Centre Coordinator (CRCC),
