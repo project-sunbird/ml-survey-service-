@@ -31,7 +31,7 @@ const configForStateLocation = function ( stateLocationCode, entityKey ) {
             }
             
             let subEntityData = subEntitiesDetails.data.form.data.fields.filter((fieldInstance)=>{
-                return fieldInstance.code == 'persona'
+                return fieldInstance.code == messageConstants.common.PERSONA
             })[0].children.administrator;
 
             //Entity type is stored in a key called code
