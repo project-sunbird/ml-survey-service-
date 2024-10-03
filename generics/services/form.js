@@ -39,7 +39,7 @@ const configForStateLocation = function ( stateLocationCode, entityKey ) {
             //Entity type is stored in a key called code
             let subEntities = subEntityData.filter( subEntity => {
                 if(allowedLocationFields.includes(subEntity.code)) return subEntity.code;
-            })
+            }).map(subEntity => subEntity.code)
             //set cache data for given state
             let setCache = cache.setValue(entityKey, subEntities, messageConstants.common.CACHE_TTL);
             return resolve(subEntities);
