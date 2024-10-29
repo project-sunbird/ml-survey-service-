@@ -55,14 +55,13 @@ module.exports = class UserRolesHelper {
         return new Promise(async (resolve, reject) => {
             try {
 
-                // let entityTypeNameToEntityTypeMap = await this.getEntityTypeToIdMap();
+                let entityTypeNameToEntityTypeMap = await this.getEntityTypeToIdMap();
                 const userRolesUploadedData = await Promise.all(
                     userRolesCSVData.map(async userRole => {
 
                         try {
                             
                             userRole = gen.utils.valueParser(userRole);
-
                             if(userRole.entityTypes != "") {
                                 let roleEntityTypes = userRole.entityTypes.split(",");
                                 roleEntityTypes = _.uniq(roleEntityTypes);
@@ -70,16 +69,16 @@ module.exports = class UserRolesHelper {
                                 userRole.entityTypes = new Array;
 
                                 roleEntityTypes.forEach(entityType => {
-                                    let role = {
-                                        "entityType": entityType
-                                    }
-                                    userRole.entityTypes.push(role);
-                                    //commented for entity generalization
-                                    // if(entityTypeNameToEntityTypeMap[entityType]) {
-                                    //     userRole.entityTypes.push(entityTypeNameToEntityTypeMap[entityType]);
-                                    // } else {
-                                    //     throw messageConstants.apiResponses.INVALID_ENTITY_TYPE;
+                                    // let role = {
+                                    //     "entityType": entityType
                                     // }
+                                    // userRole.entityTypes.push(role);
+                                    //commented for entity generalization
+                                    if(entityTypeNameToEntityTypeMap[entityType]) {
+                                        userRole.entityTypes.push(entityTypeNameToEntityTypeMap[entityType]);
+                                    } else {
+                                        throw messageConstants.apiResponses.INVALID_ENTITY_TYPE;
+                                    }
                                 })
                             } else {
                                 delete userRole.entityTypes;
@@ -93,13 +92,12 @@ module.exports = class UserRolesHelper {
                             let newRole = await database.models.userRoles.create(
                                 _.merge({
                                     "status" : "active",
-                                    "updatedBy": userDetails.id,
-                                    "createdBy": userDetails.id
+                                    "updatedBy": userDetails?userDetails.id:"SYSTEM",
+                                    "createdBy": userDetails?userDetails.id:"SYSTEM"
                                 },userRole)
                             );
 
                             delete userRole.entityTypes;
-
                             if (newRole._id) {
                                 userRole["_SYSTEM_ID"] = newRole._id; 
                                 userRole.status = "Success";
