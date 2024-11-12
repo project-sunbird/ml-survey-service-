@@ -92,8 +92,7 @@ module.exports = {
     },
     link: {
       type: String,
-      index: true,
-      unique: true
+      index: { unique: true, sparse: true }
     },
     project : Object,
     referenceFrom : String,
