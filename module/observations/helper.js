@@ -217,7 +217,8 @@ module.exports = class ObservationsHelper {
     static createObservation(data,userId,solution,userRoleInformation="",userProfileInformation = {}) {
         return new Promise(async (resolve, reject) => {
             try {
-    
+                
+                let overWriteUserInfoIfReferenceFromProjectsIsFound = false;
                 if (data.entities) {
                     let entitiesToAdd = 
                     await entitiesHelper.validateEntities(data.entities, solution.entityType);
@@ -227,6 +228,7 @@ module.exports = class ObservationsHelper {
                 if( data.project ) {
                     data.project._id = ObjectId(data.project._id);
                     data.referenceFrom = messageConstants.common.PROJECT;
+                    overWriteUserInfoIfReferenceFromProjectsIsFound = true;
                 }
 
                 //compare & update userProfile with userRoleInformation
@@ -245,6 +247,26 @@ module.exports = class ObservationsHelper {
                     if (updatedUserProfile && updatedUserProfile.success == true && updatedUserProfile.profileMismatchFound == true) {
                         userProfileInformation = updatedUserProfile.data;
                     }
+                }
+
+                if(overWriteUserInfoIfReferenceFromProjectsIsFound){
+
+                    try{
+                        
+                        let projectDocument = await database.models.projects.findOne({
+                            "_id":ObjectId(data.project._id),
+                        })
+    
+                        if(projectDocument){
+    
+                            userRoleInformation = projectDocument.userRoleInformation;
+                            userProfileInformation = projectDocument.userProfile
+                        }
+                    }
+                    catch(err){
+
+                    }
+
                 }
                 
                 let observationData = 
