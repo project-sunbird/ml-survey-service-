@@ -227,7 +227,6 @@ module.exports = class ObservationsHelper {
                 if( data.project ) {
                     data.project._id = ObjectId(data.project._id);
                     data.referenceFrom = messageConstants.common.PROJECT;
-                    overWriteUserInfoIfReferenceFromProjectsIsFound = true;
                 }
 
                 //compare & update userProfile with userRoleInformation
@@ -249,14 +248,17 @@ module.exports = class ObservationsHelper {
                 }
 
                 try {
-                  let projectDocument = await database.models.projects.findOne({
-                    _id: ObjectId(data.project._id),
-                  });
+                    if( data.project ){
+                        let projectDocument = await database.models.projects.findOne({
+                            _id: ObjectId(data.project._id),
+                          });
+        
+                          if (projectDocument) {
+                            userRoleInformation = projectDocument.userRoleInformation;
+                            userProfileInformation = projectDocument.userProfile;
+                          }
+                    }
 
-                  if (projectDocument) {
-                    userRoleInformation = projectDocument.userRoleInformation;
-                    userProfileInformation = projectDocument.userProfile;
-                  }
                 } catch (err) {
 
                 }
