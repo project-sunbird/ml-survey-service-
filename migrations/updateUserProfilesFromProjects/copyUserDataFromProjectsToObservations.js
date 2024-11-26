@@ -31,6 +31,7 @@ const url = mongoUrl.split(dbName)[0];
     const observationDocuments = await db
       .collection("observations")
       .find({ referenceFrom: "project" })
+      .project({ "_id": 1,"project":1})
       .toArray();
 
     if (!observationDocuments.length) {
@@ -50,6 +51,7 @@ const url = mongoUrl.split(dbName)[0];
       const projectRecords = await db
         .collection("projects")
         .find({ _id: { $in: projectIds } })
+        .project({"_id":1,"userRoleInformation":1,"userProfile":1})
         .toArray();
 
       for (const project of projectRecords) {
@@ -74,7 +76,7 @@ const url = mongoUrl.split(dbName)[0];
             project.userProfile &&
             project.userProfile.id
           ) {
-            setObject.userProfileInformation = project.userProfile;
+            setObject.userProfile = project.userProfile;
           }
           
 
