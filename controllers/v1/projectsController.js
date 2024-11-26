@@ -5,12 +5,10 @@
  * Description : Projects controller
  */
 
-// Dependencies
-const pollSubmissionsHelper = require(MODULES_BASE_PATH + "/pollSubmissions/helper");
 
 
 /**
-    * PollSubmissions
+    * Projects
     * @class
 */
 module.exports = class Projects extends Abstract {
