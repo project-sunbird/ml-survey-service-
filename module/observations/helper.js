@@ -218,7 +218,6 @@ module.exports = class ObservationsHelper {
         return new Promise(async (resolve, reject) => {
             try {
                 
-                let overWriteUserInfoIfReferenceFromProjectsIsFound = false;
                 if (data.entities) {
                     let entitiesToAdd = 
                     await entitiesHelper.validateEntities(data.entities, solution.entityType);
@@ -249,25 +248,20 @@ module.exports = class ObservationsHelper {
                     }
                 }
 
-                if(overWriteUserInfoIfReferenceFromProjectsIsFound){
+                try {
+                  let projectDocument = await database.models.projects.findOne({
+                    _id: ObjectId(data.project._id),
+                  });
 
-                    try{
-                        
-                        let projectDocument = await database.models.projects.findOne({
-                            "_id":ObjectId(data.project._id),
-                        })
-    
-                        if(projectDocument){
-    
-                            userRoleInformation = projectDocument.userRoleInformation;
-                            userProfileInformation = projectDocument.userProfile
-                        }
-                    }
-                    catch(err){
-
-                    }
+                  if (projectDocument) {
+                    userRoleInformation = projectDocument.userRoleInformation;
+                    userProfileInformation = projectDocument.userProfile;
+                  }
+                } catch (err) {
 
                 }
+
+                
                 
                 let observationData = 
                 await database.models.observations.create(
