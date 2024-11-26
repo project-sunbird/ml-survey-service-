@@ -60,18 +60,35 @@ const url = mongoUrl.split(dbName)[0];
           })
           .map((obs) => obs._id);
 
+          let setObject = {};
 
-          observationIdsUpdated.push(...targetObservationIds)
+           if (
+            project.userRoleInformation &&
+            project.userRoleInformation.role &&
+            project.userRoleInformation.state
+          ) {
+            setObject.userRoleInformation = project.userRoleInformation;
+          }
+          
+          if (
+            project.userProfile &&
+            project.userProfile.id
+          ) {
+            setObject.userProfileInformation = project.userProfile;
+          }
+          
+
+          if (Object.keys(setObject).length === 0) {
+            continue;
+          }
+
         // Update observations
         const updatedObservations = await db
           .collection("observations")
           .updateMany(
             { _id: { $in: targetObservationIds } },
             {
-              $set: {
-                userRoleInformation: project.userRoleInformation,
-                userProfile: project.userProfile,
-              },
+              $set: setObject
             }
           );
 
@@ -81,12 +98,12 @@ const url = mongoUrl.split(dbName)[0];
           .updateMany(
             { observationId: { $in: targetObservationIds } },
             {
-              $set: {
-                userRoleInformation: project.userRoleInformation,
-                userProfile: project.userProfile,
-              },
+              $set: setObject
             }
           );
+
+          observationIdsUpdated.push(...targetObservationIds)
+
       }
     }
 
