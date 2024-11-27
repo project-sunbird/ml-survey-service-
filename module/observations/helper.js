@@ -217,7 +217,7 @@ module.exports = class ObservationsHelper {
     static createObservation(data,userId,solution,userRoleInformation="",userProfileInformation = {}) {
         return new Promise(async (resolve, reject) => {
             try {
-    
+                
                 if (data.entities) {
                     let entitiesToAdd = 
                     await entitiesHelper.validateEntities(data.entities, solution.entityType);
@@ -246,6 +246,24 @@ module.exports = class ObservationsHelper {
                         userProfileInformation = updatedUserProfile.data;
                     }
                 }
+
+                try {
+                    if( data.project ){
+                        let projectDocument = await database.models.projects.findOne({
+                            _id: ObjectId(data.project._id),
+                          });
+        
+                          if (projectDocument) {
+                            userRoleInformation = projectDocument.userRoleInformation;
+                            userProfileInformation = projectDocument.userProfile;
+                          }
+                    }
+
+                } catch (err) {
+
+                }
+
+                
                 
                 let observationData = 
                 await database.models.observations.create(
