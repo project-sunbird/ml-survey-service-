@@ -15,6 +15,14 @@ module.exports = {
     },
     updatedBy: String,
     status: String,
+    startDate:{
+      type: Date, 
+      index: true
+    },
+    endDate: {
+      type : Date,
+      index : true
+    },
     resourceType: [String],
     language: [String],
     keywords: [String],
